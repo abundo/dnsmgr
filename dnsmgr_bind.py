@@ -396,16 +396,17 @@ class BindMgr:
         f.close()
         
         # Copy the file with updated serial number to server
-        fsrc = FileMgr(filename=tmpfile)
-        fdst = FileMgr(self.remote, tmpfile, mode="w")
-        fsrc.copy(fdst)
+        if self.remote:
+            fsrc = FileMgr(filename=tmpfile)
+            fdst = FileMgr(self.remote, tmpfile, mode="w")
+            fsrc.copy(fdst)
         
-        # Compare checksums on local and remote file so copy was ok
-        if not fsrc.compare(fdst):
-            raise NS_Exception("Error: Copy of new file failed, incorrect checksum")
+            # Compare checksums on local and remote file so copy was ok
+            if not fsrc.compare(fdst):
+                raise NS_Exception("Error: Copy of new file failed, incorrect checksum")
             
         # Verify size between original file and file with updated serial
-        # They should be identical
+        # They should be identical, since serial number never changes size
         fsrc = FileMgr(remote=self.remote, filename=tmpfile)
         fdst = FileMgr(remote=self.remote, filename=zoneinfo.file)
         if fsrc.size() != fdst.size():
