@@ -17,9 +17,6 @@ If config ok, restart named
 import sys
 import ipaddress
 import logging
-
-from orderedattrdict import AttrDict
-
 import pprint
 
 import dnsmgr_bind
@@ -153,10 +150,6 @@ class Hosts:
             
             host = Host(domain=self.domain, name=name, addr=addr)
             self._add(host)
-
-
-class DnsException(Exception):
-    pass
 
 
 class Mtrie4:
