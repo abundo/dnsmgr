@@ -159,11 +159,12 @@ class FileMgr:
     """
     Handle reading and writing files, locally or over SSH
     """
-    def __init__(self, remote=None, filename=None, mode="r"):
+    def __init__(self, remote=None, filename=None, mode="r", openFile=True):
         self.remote = remote
         self.proc = None    # subprocess being run
         self.f = None       # file handle to read/write, for subprocess
-        if filename:
+        self.filename = filename
+        if filename and openFile:
             self.open(filename, mode)
         
     def open(self, filename, mode="r"):
@@ -215,6 +216,13 @@ class FileMgr:
         if self.remote:
             # todo, wait for subprocess to quit?
             pass
+    
+    def exist(self):
+        """
+        Returns True if file exist
+        """
+        cmd = ["test", "-f", self.filename]
+        return runCmd(self.remote, cmd, call=True) == 0
     
     def size(self):
         """
@@ -520,10 +528,16 @@ class BindMgr:
             if not fsrc.compare(fdst):
                 raise NS_Exception("Error: Copied file has incorrect checksum, copy failed")
 
+
         fsrc = FileMgr(remote=self.remote, filename=filename)
-        fdst = FileMgr(remote=self.remote, filename="/etc/bind/master/include/%s" % zoneinfo.name)
-        
-        if not fsrc.compare(fdst):
+        fdst = FileMgr(remote=self.remote, filename="/etc/bind/master/include/%s" % zoneinfo.name, openFile=False)
+
+        if fdst.exist():
+            replace = not fsrc.compare(fdst)
+        else:
+            replace = True
+       
+        if replace:
             fsrc.move(fdst)
             self.increaseSoaSerial(zoneinfo)
 
