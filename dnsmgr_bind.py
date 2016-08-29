@@ -30,7 +30,7 @@ def ipv4_addr_to_reverse(addr):
     1.2.3.4 returns 4.3.2.1
     """
     ip = addr.split(".")
-    return ".".join( reversed(ip) )
+    return ".".join(reversed(ip))
 
 
 def ipv6_addr_to_reverse(addr):
@@ -52,7 +52,7 @@ class ZoneInfo(AttrDict):
         super().__init__()
         self.name = None        # name of zone
         self.file = None        # full path to file with resource records
-        self.typ  = None        # master, slave etc
+        self.typ = None         # master, slave etc
 
 
 def runCmd(remote=None, cmd=None, call=False):
@@ -169,7 +169,7 @@ class FileMgr:
     def open(self, filename, mode="r"):
         self.filename = filename
         self.mode = mode
-        if not mode in ["r", "w"]:
+        if mode not in ["r", "w"]:
             raise FileNotFoundError("Unknown file mode %s" % mode)
         
         if self.remote:
@@ -183,7 +183,7 @@ class FileMgr:
                 self.proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, bufsize=1)
                 self.f = self.proc.stdout
             else:
-                cmd += ["cat >%s" % filename ]
+                cmd += ["cat >%s" % filename]
                 self.proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
                 self.f = self.proc.stdin
         else:
@@ -293,12 +293,12 @@ class BindMgr:
     
     # We always ignore these zones
     ignorezones = {
-                    "." : 1, 
-                    "localhost" : 1, 
-                    "127.in-addr.arpa" : 1,
-                    "0.in-addr.arpa" : 1,
-                    "255.in-addr.arpa" : 1,
-                    }
+        "." : 1, 
+        "localhost" : 1, 
+        "127.in-addr.arpa" : 1,
+        "0.in-addr.arpa" : 1,
+        "255.in-addr.arpa" : 1,
+    }
     
     def __init__(self, host=None, port=22):
         if host:
@@ -383,7 +383,7 @@ class BindMgr:
 
         # Should we go to todays date?
 
-        s = serial[ p+8:p+10 ]
+        s = serial[p+8:p+10]
         if s == "99":
             # todo, increase to next day and set serial=00
             raise NS_Exception("Serial number ends at 99, not implementad to handle this, in file %s" % zoneinfo.file)
@@ -449,7 +449,7 @@ class BindMgr:
             f = FileMgr(self.remote)
             f.open(filename, "r")
             parser = Parser(f)
-            token = True
+            token = "dummy"
             while token is not None:
                 token = parser.getToken()
                 if token == 'include':
@@ -458,7 +458,7 @@ class BindMgr:
                     
                 elif token == 'zone':
                     zone = parseZone(parser)
-                    if not zone.name in self.ignorezones:
+                    if zone.name not in self.ignorezones:
                         self.zones[zone.name] = zone
 
         parseBindConfigFile(filename)
@@ -535,22 +535,22 @@ def main():
     parser.add_argument('cmd',
                         default=None,
                         choices=[
-                                 "status", 
-                                 "restart",
-                                 "listzones",
-                                 "incsoaserial"
-                                 ],
+                            "status", 
+                            "restart",
+                            "listzones",
+                            "incsoaserial"
+                        ],
                         help='Action to run',
-                        )
+                       )
     parser.add_argument('--host',
                         default=None,
-                        )
+                       )
     parser.add_argument('--port',
                         default=None,
-                        )
+                       )
     parser.add_argument('--zone',
                         default=None,
-                        )
+                       )
      
     args = parser.parse_args()
     

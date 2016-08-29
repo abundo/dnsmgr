@@ -21,27 +21,30 @@ import logging
 from orderedattrdict import AttrDict
 
 import pprint
-pp = pprint.PrettyPrinter(indent=4)
 
 import dnsmgr_bind
+
+pp = pprint.PrettyPrinter(indent=4)
 
 allowed_chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-."
 
 # Setup logger
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
-    
+
 
 def verify_dnsname(name):
     """Check if a name contains valid characters"""
     for n in name:
-        if not n in allowed_chars:
+        if n not in allowed_chars:
             return False
     return True
 
 
 class RR:
-    
+    """
+    One Resource Record
+    """
     def __init__(self, domain=None, name=None, typ=None, value=None, obj=None):
         self.domain = domain
         self.name = name
@@ -62,10 +65,10 @@ class Host:
     def __init__(self, domain=None, name=None, addr=None):
         self.domain = domain
         self.name = name
-        if type(addr) != type(list):
-            self.addr = [addr]
-        else:
+        if isinstance(addr, list):
             self.addr = addr
+        else:
+            self.addr = [addr]
         self.fqdn = "%s.%s" % (name, domain)
     
     def __str__(self):
@@ -179,22 +182,21 @@ class Mtrie4:
     def add_prefix(self, prefix, obj):
         p = self.root
         ip = str(prefix[0]).split(".")
-        l =  prefix.prefixlen
+        l = prefix.prefixlen
 
         while l > 8:
-            i = int( ip.pop(0) )
+            i = int(ip.pop(0))
             if i not in p.child:
                 p.child[i] = self.Node()
             p = p.child[i]
             l -= 8
         
         i = int(ip.pop(0))
-        if 1:
-            b = i
-            e = i + (128 >> l)
-            for ix in range(b,e+1):
-                if ix not in p.obj:
-                    p.obj[ix] = obj
+        b = i
+        e = i + (128 >> l)
+        for ix in range(b, e + 1):
+            if ix not in p.obj:
+                p.obj[ix] = obj
 
     def lookup(self, addr):
         """
@@ -235,12 +237,12 @@ class Mtrie6:
     def add_prefix(self, prefix, obj):
         p = self.root
         ip = prefix.exploded.replace(":", "")
-        l =  prefix.prefixlen
+        l = prefix.prefixlen
         if l % 4 != 0:
             raise ValueError("Cannot handle IPv6 prefixes on non-nibbles")
 
         while l > 4:
-            i = int( ip[0], 16 )
+            i = int(ip[0], 16)
             ip = ip[1:]
             if i not in p.child:
                 p.child[i] = self.Node()
@@ -249,12 +251,11 @@ class Mtrie6:
         
         i = int(ip[0])
         ip = ip[1:]
-        if 1:
-            b = i
-            e = i + (128 >> l)
-            for ix in range(b,e+1):
-                if ix not in p.obj:
-                    p.obj[ix] = obj
+        b = i
+        e = i + (128 >> l)
+        for ix in range(b, e + 1):
+            if ix not in p.obj:
+                p.obj[ix] = obj
 
 
     def lookup(self, addr):
@@ -359,8 +360,8 @@ class Zones:
         Keep sorted on longest zonename
         """
         a = Zone(zone, typ="forward")
-        tmp = self.zones + [ a ]
-        tmp.sort(key = lambda x: len(x.zone))
+        tmp = self.zones + [a]
+        tmp.sort(key=lambda x: len(x.zone))
         self.zones = tmp
 
     def add_zone_reverse4(self, zonename):
@@ -390,8 +391,8 @@ class Zones:
         prefixstr += "/%s" % prefixlen
         prefix = ipaddress.IPv4Network(prefixstr, strict=True)
         
-        tmp = Zone(zone=zonename, prefix=prefix, typ="reverse4")
-        self.reverse4.append( tmp )
+        zone = Zone(zone=zonename, prefix=prefix, typ="reverse4")
+        self.reverse4.append(zone)
 
     def add_zone_reverse6(self, zonename):
         """
@@ -417,13 +418,13 @@ class Zones:
             prefix.append("0")
         
         prefixstr = ""
-        for ix in range(0,len(prefix)):
+        for ix in range(0, len(prefix)):
             if ix and (ix % 4) == 0:
                 prefixstr += ":"
             prefixstr += prefix[ix]
         prefixstr += "/%s" % prefixlen
         prefix = ipaddress.IPv6Network(prefixstr, strict=True)
-        log.debug("prefix %s" % prefix)
+        log.debug("prefix %s", prefix)
         
         zone = Zone(zone=zonename, prefix=prefix, typ="reverse6")
         self.reverse6.append(zone)
@@ -439,21 +440,21 @@ class Zones:
             if zone.zone == rr.domain:
                 zone.add_rr(rr)
                 return
-        log.info("Ignored, NOT handling forward DNS for %s" % rr)
+        log.info("Ignored, NOT handling forward DNS for %s", rr)
 
     def add_rr_reverse4(self, rr):
         zone = self.lpm4.lookup(str(rr.name))
         if zone is not None:
             zone.add_rr(rr)
         else:
-            log.warning("Ignored, NOT handling reverse DNS for %s" % rr)
+            log.warning("Ignored, NOT handling reverse DNS for %s", rr)
 
     def add_rr_reverse6(self, rr):
         zone = self.lpm6.lookup(rr.name)
         if zone is not None:
             zone.add_rr(rr)
         else:
-            log.warning("Ignored, NOT handling reverse DNS for %s" % rr)
+            log.warning("Ignored, NOT handling reverse DNS for %s", rr)
 
 
 class DNS_Mgr:
@@ -461,7 +462,7 @@ class DNS_Mgr:
     def __init__(self, driver=None):
         self.driver = driver
         self.zones = None
-        self.zonesInfo = None
+        self.zonesinfo = None
 
     def restart(self):
         self.driver.restart()
@@ -475,7 +476,7 @@ class DNS_Mgr:
         self.zones = Zones()
         
         for name, zoneinfo in self.zonesinfo.items():
-            log.debug("Adding zone %s" % name)
+            log.debug("Adding zone %s", name)
             if zoneinfo.typ != "master":
                 continue
 
@@ -520,22 +521,22 @@ def main():
     parser.add_argument('cmd',
                         default=None,
                         choices=[
-                                 "status",
-                                 "loadhosts",
-                                 "restart",
-                                 "rebuild",
-                                 ],
+                            "status",
+                            "loadhosts",
+                            "restart",
+                            "rebuild",
+                            ],
                         help='Action to run',
-                        )
+                       )
     parser.add_argument('--host',
                         default=None,
-                        )
+                       )
     parser.add_argument('--port',
                         default=None,
-                        )
+                       )
     parser.add_argument('--hostsfile',
                         default=None,
-                        )
+                       )
     args = parser.parse_args()
     
     bindMgr = dnsmgr_bind.BindMgr(host=args.host, port=args.port)
