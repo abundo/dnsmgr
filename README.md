@@ -25,6 +25,7 @@ Assumes
 - the generated include files are stored at /etc/bind/master/include
 - the script will be run by user anders
 
+
     sudo mkdir /etc/dnsmgr
     sudo chown anders /etc/dnsmgr
     
@@ -64,6 +65,7 @@ Edit hosts file and add/update/delete entries according to your environment.
     ./dnsmgr.py rebuild --hostsfile /etc/dnsmgr/hosts
     
 This will create include files in /etc/bind/master/include
+
 Inspect and verify that they are correct  
 
 ## Use generated files
