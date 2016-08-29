@@ -133,7 +133,7 @@ class Hosts:
                 elif tmp[0] == "$DOMAIN":
                     self.domain = tmp[1]
                 elif tmp[0] == "$INCLUDE":
-                    self.load2(filename=tmp[1])
+                    self.load(filename=tmp[1])
                 else:
                     raise ValueError("Invalid command %s" % tmp[0])
                 continue
