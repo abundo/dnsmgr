@@ -383,19 +383,25 @@ class BindMgr:
             raise NS_Exception("Can't find serial number in file %s" % zoneinfo.file)
 
         # check if serial starts with a valid date
-        datestr = serial[p:p+8]
         try:
-            d = datetime.datetime.strptime(datestr, "%Y%m%d")
+            dt = datetime.datetime.strptime(serial[p:p+8], "%Y%m%d").date()
         except ValueError as err:
             raise NS_Exception("Serial number does not start with a valid date, in file %s" % zoneinfo.file)
 
-        # Should we go to todays date?
-
-        s = serial[p+8:p+10]
-        if s == "99":
-            # todo, increase to next day and set serial=00
-            raise NS_Exception("Serial number ends at 99, not implementad to handle this, in file %s" % zoneinfo.file)
-        serial = datestr + str(int(s) + 1).zfill(2)
+        seq = int(serial[p+8:p+10])
+        now = datetime.datetime.now().date()
+        if now > dt:
+            # Serial has old date, replace with todays date and restart sequence
+            dt = now 
+            seq = 0
+        else:
+            if seq > 98: 
+                # todo, increase to next day and restart sequence
+                dt = dt + datetime.timedelta(days=1)
+                seq = 0
+            else:
+                seq += 1
+        serial = dt.strftime("%Y%m%d") + str(seq).zfill(2)
 
         # Ok, write the new serial to the temp file
         f = open(tmpfile, "r+b")
