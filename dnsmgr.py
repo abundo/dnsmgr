@@ -46,7 +46,7 @@ class RR:
         self.domain = domain
         self.name = name
         self.fqdn = "%s.%s" % (self.name, self.domain)
-        self.typ = typ
+        self.typ = typ.upper()
         self.value = value
         self.obj = obj
 
@@ -57,30 +57,31 @@ class RR:
 
 class Host:
     """
-    Represents one host, with IP addresses
+    Represents one host with type and values
     """
-    def __init__(self, domain=None, name=None, addr=None):
+    def __init__(self, domain=None, name=None, typ=None, value=None):
         self.domain = domain
         self.name = name
-        if isinstance(addr, list):
-            self.addr = addr
+        self.typ = typ
+        if isinstance(value, list):
+            self.value = value
         else:
-            self.addr = [addr]
+            self.value = [value]
         self.fqdn = "%s.%s" % (name, domain)
     
     def __str__(self):
-        return "Host(domain=%s, name=%s, addr=%s)" % (self.domain, self.name, self.addr)
+        return "Host(domain=%s, name=%s, typ=%s, value=%s)" % (self.domain, self.name, self.typ, self.value)
     
-    def add_ipaddr(self, addr):
-        if isinstance(addr, list):
-            self.addr += addr
+    def add_value(self, value):
+        if isinstance(value, list):
+            self.value += value
         else:
-            self.addr.append(addr)
+            self.value.append(value)
         
-    def addr_as_str(self):
+    def value_as_str(self):
         res = []
-        for addr in self.addr:
-            res.append(str(addr))
+        for value in self.value:
+            res.append(str(value))
         return ", ".join(res)
 
 
@@ -89,17 +90,17 @@ class Hosts:
     Manage a list of hosts
     """    
     def __init__(self):
-        self._hosts = {}    # key is name
+        self._hosts = {}    # key is name+typ
         self.domain = None
     
     def __len__(self):
         return len(self._hosts)
 
     def _add(self, host):
-        key = host.fqdn
+        key = host.fqdn + chr(0) + host.typ
         if key in self._hosts:
-            # Host exist, add additional IP address to it
-            self._hosts[key].add_ipaddr(host.addr)
+            # Host exist, add additional value to it
+            self._hosts[key].add_value(host.value)
         else:
             self._hosts[key] = host
 
@@ -117,7 +118,7 @@ class Hosts:
 
     def load(self, filename=None):
         """
-        Read all hosts from the configuration file
+        Read all host entries from the hosts file
         Empty lines and comments starting with # or ; is ignored
 
         recursive function, to handle $INCLUDE to other files
@@ -127,7 +128,7 @@ class Hosts:
             if line == "" or line[0] == "#" or line[0] == ";":
                 continue
             if line[0] == "$":
-                tmp = line.split()
+                tmp = line.split(None, 2)
                 if len(tmp) < 2:
                     raise ValueError("Invalid $ syntax: %s" % line)
                 elif tmp[0] == "$DOMAIN":
@@ -138,17 +139,27 @@ class Hosts:
                     raise ValueError("Invalid command %s" % tmp[0])
                 continue
     
-            tmp = line.lower().split()
-            if len(tmp) < 2:
+            tmp = line.split(None, 3)
+            if len(tmp) != 3:
                 raise ValueError("Invalid syntax: %s" % line)
             
             name = tmp[0] 
-            if not verify_dnsname(name):
-                raise ValueError("Invalid name: %s in %s" % (tmp[0], line))
+            if name != "@" and not verify_dnsname(name):
+                raise ValueError("Invalid name: %s in %s" % (name, line))
+
+            typ = tmp[1].upper()
+            value = tmp[2]
+            if typ == "A":
+                value = ipaddress.IPv4Address(value)
+            elif typ == "AAAA":
+                value = ipaddress.IPv6Address(value)
+            elif typ in ["CNAME", "MX", "NS", "PTR", "SRV", "SSHFP", "TLSA", "TSIG", "TXT"]:
+                pass
             
-            addr = ipaddress.ip_address(tmp[1])
+            else:
+                raise ValueError("Invalid type: %s in %s" % (typ, line))
             
-            host = Host(domain=self.domain, name=name, addr=addr)
+            host = Host(domain=self.domain, name=name, typ=typ, value=value)
             self._add(host)
 
 
@@ -469,9 +480,10 @@ class DNS_Mgr:
         self.zones = Zones()
         
         for name, zoneinfo in self.zonesinfo.items():
-            log.debug("Adding zone %s", name)
             if zoneinfo.typ != "master":
+                log.debug("Ignoring zone '%s' with type '%s'", name, zoneinfo.typ)
                 continue
+            log.debug("Adding zone %s", name)
 
             if name.endswith(".in-addr.arpa"):
                 self.zones.add_zone_reverse4(name)
@@ -484,24 +496,31 @@ class DNS_Mgr:
 
         # Go through all hosts, and add them to the correct zone
         for host in hosts:
-            domain = host.domain.lower()
-            name = host.name.lower()
-            
-            for addr in host.addr:
-                # forward
-                if addr.version == 4:
-                    rr = RR(domain=domain, name=name, typ="A", value=addr)
-                else:
-                    rr = RR(domain=domain, name=name, typ="AAAA", value=addr)
-                self.zones.add_rr(rr)
-         
-                # reverse
-                rr = RR(domain=domain, name=addr, typ="PTR", value=name)
-                if addr.version == 4:
+            if host.typ == "A":
+                for value in host.value:
+                    # forward
+                    rr = RR(domain=host.domain, name=host.name, typ=host.typ, value=value)
+                    self.zones.add_rr(rr)
+                    
+                    # reverse
+                    rr = RR(domain=host.domain, name=value, typ="PTR", value=host.name)
+                    print(rr)
                     self.zones.add_rr_reverse4(rr)
-                else:
+                    
+            elif host.typ == "AAAA":
+                for value in host.value:
+                    # forward
+                    rr = RR(domain=host.domain, name=host.name, typ=host.typ, value=value)
+                    
+                    # reverse
+                    rr = RR(domain=host.domain, name=value, typ="PTR", value=host.name)
                     self.zones.add_rr_reverse6(rr)
-
+                    
+            else:
+                for value in host.value:
+                    rr = RR(domain=host.domain, name=host.name, typ=host.typ, value=value)
+                    self.zones.add_rr(rr)
+                
         # Write the files to the backend
         for zone in self.zones:
             self.driver.saveZone(zone)
@@ -546,9 +565,9 @@ def main():
         hosts = Hosts()
         hosts.load(filename=args.hostsfile)
         for host in hosts:
-            print("%s.%s" % (host.name, host.domain))
-            for addr in host.addr:
-                print("   ", addr)
+            print("%s.%s %s" % (host.name, host.domain, host.typ))
+            for value in host.value:
+                print("   ", value)
         
     elif args.cmd == "restart":
         print("Restart DNS server")

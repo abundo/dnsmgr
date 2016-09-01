@@ -15,8 +15,8 @@
 
 $DOMAIN example.com
 
-ns1                     192.168.1.1
-ns1                     2001:db8:1::1
+ns1                     A        192.168.1.1
+ns1                     AAAA     2001:db8:1::1
 
-www                     192.168.1.2
-www                     2001:db8:1::2
+www                     A        192.168.1.2
+www                     AAAA     2001:db8:1::2
