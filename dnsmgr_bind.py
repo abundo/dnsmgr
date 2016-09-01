@@ -379,7 +379,7 @@ class BindMgr:
         p -= 9   # should be first position in serial number
         if p < 0:
             raise NS_Exception("Can't find all digist in serial number in file %s" % zoneinfo.file)
-        if not serial[p: p+9].isdigit():
+        if not serial[p:p+10].isdigit():
             raise NS_Exception("Can't find serial number in file %s" % zoneinfo.file)
 
         # check if serial starts with a valid date
