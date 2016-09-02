@@ -308,11 +308,15 @@ class BindMgr:
         "255.in-addr.arpa" : 1,
     }
     
-    def __init__(self, host=None, port=22):
+    def __init__(self, host=None, port=22, includedir="/etc/bind/primary/include"):
+        self.host = host
+        self.port = port
+        self.includedir = includedir
         if host:
             self.remote = AttrDict(host=host, port=port)
         else:
             self.remote = None
+            
         self.zones = {}
 
     def restart(self):
@@ -482,8 +486,8 @@ class BindMgr:
         """
         Save zone resource records
         We always write to a temp file, then comparing the new file with the
-        original. If they differ we replace the old file, increase SOA serial number
-        and reload the zone
+        original. If they differ we replace the original file, increase the 
+        SOA serial number and reload the zone
         """
         zoneinfo = self.zones[zone.zonefile]
         
@@ -536,7 +540,8 @@ class BindMgr:
 
 
         fsrc = FileMgr(remote=self.remote, filename=filename)
-        fdst = FileMgr(remote=self.remote, filename="/etc/bind/master/include/%s" % zoneinfo.name, openFile=False)
+        fdst = FileMgr(remote=self.remote, filename="%s/%s" %\
+                       (self.includedir, zoneinfo.name), openFile=False)
 
         if fdst.exist():
             replace = not fsrc.compare(fdst)
@@ -571,10 +576,14 @@ def main():
     parser.add_argument('--zone',
                         default=None,
                        )
-     
-    args = parser.parse_args()
     
-    bindMgr = BindMgr(host=args.host, port=args.port)
+    args = parser.parse_args()
+
+    bindMgrArgs = {
+        "host": args.host,
+        "port": args.port,
+        }    
+    bindMgr = BindMgr(**bindMgrArgs)
     
     if args.cmd == "status":
         print("status not implemented")

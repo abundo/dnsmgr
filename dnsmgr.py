@@ -549,9 +549,19 @@ def main():
     parser.add_argument('--hostsfile',
                         default=None,
                        )
+    parser.add_argument('--includedir',
+                        default=None,
+                       )
     args = parser.parse_args()
     
-    bindMgr = dnsmgr_bind.BindMgr(host=args.host, port=args.port)
+    bindMgrArgs = {
+        "host": args.host,
+        "port": args.port,
+        }    
+    if args.includedir is not None:
+        bindMgrArgs["includedir"] = args.includedir
+     
+    bindMgr = dnsmgr_bind.BindMgr(**bindMgrArgs)
     mgr = DNS_Mgr(driver=bindMgr)
     
     if args.cmd == "status":
