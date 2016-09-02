@@ -565,9 +565,9 @@ def main():
         hosts = Hosts()
         hosts.load(filename=args.hostsfile)
         for host in hosts:
-            print("%s.%s %s" % (host.name, host.domain, host.typ))
             for value in host.value:
-                print("   ", value)
+                tmp = "%s.%s" % (host.name, host.domain)
+                print("%-30s %-8s %s" % (tmp, host.typ, value))
         
     elif args.cmd == "restart":
         print("Restart DNS server")
