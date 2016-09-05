@@ -460,10 +460,10 @@ class BindMgr:
                 t = parser.getToken()
                 if t == 'type':
                     zone.typ = parser.getToken()
-                    if zone.file[0] != "/":
-                        zone.file = "%s/%s" % (self.directory, zone.file)
                 elif t == 'file':
                     zone.file = parser.getToken()
+                    if zone.file[0] != "/":
+                        zone.file = "%s/%s" % (self.directory, zone.file)
                     
             return zone
         
