@@ -19,6 +19,8 @@ import ipaddress
 import logging
 import pprint
 
+from orderedattrdict import AttrDict
+
 import dnsmgr_bind
 
 pp = pprint.PrettyPrinter(indent=4)
@@ -504,7 +506,6 @@ class DNS_Mgr:
                     
                     # reverse
                     rr = RR(domain=host.domain, name=value, typ="PTR", value=host.name)
-                    print(rr)
                     self.zones.add_rr_reverse4(rr)
                     
             elif host.typ == "AAAA":
@@ -552,14 +553,17 @@ def main():
     parser.add_argument('--includedir',
                         default=None,
                        )
+    parser.add_argument('--tmpdir',
+                        default=None,
+                       )
     args = parser.parse_args()
     
-    bindMgrArgs = {
-        "host": args.host,
-        "port": args.port,
-        }    
-    if args.includedir is not None:
-        bindMgrArgs["includedir"] = args.includedir
+    bindMgrArgs = AttrDict(
+        host = args.host,
+        port = args.port,
+        )
+    if args.includedir: bindMgrArgs.includedir = args.includedir
+    if args.tmpdir:     bindMgrArgs.tmpdir     = args.tmpdir
      
     bindMgr = dnsmgr_bind.BindMgr(**bindMgrArgs)
     mgr = DNS_Mgr(driver=bindMgr)
