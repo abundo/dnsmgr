@@ -308,10 +308,15 @@ class BindMgr:
         "255.in-addr.arpa" : 1,
     }
     
-    def __init__(self, host=None, port=22, includedir="/etc/bind/primary/include"):
+    def __init__(self, 
+                 host=None,
+                 port="22",
+                 includedir="/etc/bind/primary/include",
+                 directory="/var/cache/bind"):
         self.host = host
         self.port = port
         self.includedir = includedir
+        self.directory = directory
         if host:
             self.remote = AttrDict(host=host, port=port)
         else:
@@ -455,6 +460,8 @@ class BindMgr:
                 t = parser.getToken()
                 if t == 'type':
                     zone.typ = parser.getToken()
+                    if zone.file[0] != "/":
+                        zone.file = "%s/%s" % (self.directory, zone.file)
                 elif t == 'file':
                     zone.file = parser.getToken()
                     
