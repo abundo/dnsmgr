@@ -470,6 +470,9 @@ class DNS_Mgr:
         self.zones = None
         self.zonesinfo = None
 
+    def getZones(self):
+        return self.driver.getZones()
+
     def restart(self):
         self.driver.restart()
 
@@ -536,6 +539,7 @@ def main():
                         choices=[
                             "status",
                             "loadhosts",
+                            "getzones",
                             "restart",
                             "rebuild",
                             ],
@@ -582,6 +586,15 @@ def main():
             for value in host.value:
                 tmp = "%s.%s" % (host.name, host.domain)
                 print("%-30s %-8s %s" % (tmp, host.typ, value))
+        
+    elif args.cmd == "getzones":
+        print("Get zones")
+        zonesinfo = mgr.getZones()
+        for zoneinfo in zonesinfo.values():
+            print("zone")
+            print("    name", zoneinfo.name)
+            print("    type", zoneinfo.typ)
+            print("    file", zoneinfo.file)
         
     elif args.cmd == "restart":
         print("Restart DNS server")
