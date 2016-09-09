@@ -247,6 +247,7 @@ class FileMgr:
             raise ValueError("dest file must be instance of FileMgr")
 
         if self.remote and dest.remote:
+            cmd = ["cp", "--force", self.filename, dest.filename]
             raise ValueError("Can't copy source->dest if both are remote files, not implemented")
         
         elif self.remote:
@@ -454,8 +455,9 @@ class BindMgr:
         if fsrc.size() != fdst.size():
             raise NS_Exception("Error: Old file and new file has different sizes")
              
-        # Move file to correct location
-        fsrc.move(fdst)
+        # Copy file to correct location
+        cmd = ["cp", "--force", fsrc.filename, fdst.filename]
+        runCmd(remote=self.remote, cmd=cmd)
 
         # Tell bind we have an updated serial no
         self.reloadZone(zoneinfo.name)
