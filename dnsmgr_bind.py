@@ -588,7 +588,7 @@ def main():
                         choices=[
                             "status", 
                             "restart",
-                            "listzones",
+                            "getzones",
                             "incsoaserial"
                         ],
                         help='Action to run',
@@ -623,13 +623,14 @@ def main():
         print("Restart DNS server")
         bindMgr.restart()
         
-    elif args.cmd == "listzones":
-        print("List all zones")
-        zones = bindMgr.getZones()
-        for zone in zones.values():
-            print("Name  :", zone.name)
-            print("  Typ :", zone.typ)
-            print("  File:", zone.file)
+    elif args.cmd == "getzones":
+        print("Get zones")
+        zonesinfo = bindMgr.getZones()
+        for zoneinfo in zonesinfo.values():
+            print("zone")
+            print("    name", zoneinfo.name)
+            print("    type", zoneinfo.typ)
+            print("    file", zoneinfo.file)
 
     elif args.cmd == "incsoaserial":
         print("Increase SOA serial for zone %s" % args.zone)
