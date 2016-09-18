@@ -1,55 +1,100 @@
-# dnsmgr
+# DNSMGR
 
-Manage dns forward and reverse zonefiles, from a hostfile
+Manage dns forward and reverse zonefiles, from a recordsfile
 
-Can be run both as a script, and used as a library
+DNSMGR can be run as a standalone application, or used as a library from other
+applications.
+
+DNSMGR can run directly on the server where the nameserver is running on,
+or on another computer using SSH to manage the nameserver and its configuration.
+
+DNSMGR can generate
+- Partial zonefiles
+  - Use when zone file content is a mix of manual and DNSMGR created entries
+  - Partial zonefiles needs to be included from the zone file
+  - More flexible, but more work to setup
+- Full zonefiles (TODO, not implemented yet see issue #16)
+  - Use when all zone file content will be generated from the zonefile
+  - Simple, all of zone file is automatically generated including SOA and NS records
 
 The code 
-- Is developed and tested on Ubuntu 14.04
-- Needs python3.x
+- Is developed and tested on Ubuntu 14.04 and Fedora 24
+- Uses python3.4 or later
+  - if the nameserver is using an older python version, run DNSMGR on
+    another machine and modifying the nameserver over SSH
 
 
 # Installation and setup
 
-These instructions are for running dnsmgr on same machine as primary DNS.
+These instructions are for running DNSMGR on the primary nameserver.
+
+Note! Installation of nameserver software is not described here, see
+the nameserver documentation (isc-bind etc)
+
+Use of a configuration file is not needed but recommended to simplify usage.
+
+Assumption, Ubuntu
+- the primary zonefiles are stored at /etc/bind/primary
+- the generated include files are stored at /etc/bind/primary/include
+- the script will be run by user anders
+
+Assumption, Fedora
+- the primary zonefiles are stored at /etc/named
+- the generated include files are stored at /etc/named/include
+- the script will be run by user anders
+
 
 ## Install dependencies
 
-    sudo apt-get install git python3-pip
+
+### Ubuntu
+
+    sudo apt-get install git python3-pip python3-yaml
+    sudo pip3 install orderedattrdict
+
+### Fedora
+
+    sudo dnf install git python3-PyYAML
     sudo pip3 install orderedattrdict
 
 
 ## Create directories and adjust permissions
 
-Assumes
-- the primary zonefiles are stored at /etc/bind/master
-- the generated include files are stored at /etc/bind/master/include
-- the script will be run by user anders
-
-
     sudo mkdir /etc/dnsmgr
     sudo chown anders /etc/dnsmgr
-    
-    sudo mkdir /etc/bind/master/include
-    sudo chown root:bind /etc/bind/master/include
-    sudo adduser anders bind
-    sudo chmod g+w /etc/bind/master
 
+### Ubuntu
+    
+    sudo usermod -G bind anders
+    sudo mkdir -p /etc/bind/primary/include
+    sudo chown root:bind /etc/bind/primary/include
+    sudo chmod g+w /etc/bind/primary
+
+### Fedora
+
+    sudo usermod -G named anders
+    sudo mkdir -p /etc/named/include
+    sudo chown root:named /etc/named/include
+    sudo chmod g+w /etc/named/primary
 
 ## Clone repository with the code
 
     cd /opt
-    sudo mkdir dnsmgr
-    sudo chown bind dnsmgr
-    git clone https://github.com/lowinger42/dnsmgr.git
+    sudo mkdir DNSMGR
+    sudo chown bind DNSMGR
+    git clone https://github.com/lowinger42/DNSMGR.git
 
 
-## Create hosts file
+## Create configuration and zones file
 
     cd /etc/dnsmgr
-    cp /opt/dnsmgr/hosts-example.com hosts
+    cp /opt/dnsmgr/records-example.com records
+    cp /opt/dnsmgr/dnsmgr-example.conf dnsmgr.conf
+    
 
-Edit hosts file and add/update/delete entries according to your environment.
+Edit file with records and add/update/delete entries according to your environment.
+
+Verify that the content of the configuration file is ok.
 
 
 ## Add permissions so user can reload updated zonefiles
@@ -64,38 +109,37 @@ Edit hosts file and add/update/delete entries according to your environment.
 
     sudo rndc reload
 
-
 ## Test setup
 
     cd /opt/dnsmgr
-    ./dnsmgr.py rebuild --hostsfile /etc/dnsmgr/hosts
+    ./dnsmgr.py rebuild
     
-This will create include files in /etc/bind/master/include
+This will create include files in /etc/bind/primary/include
 
-Inspect and verify that they are correct  
+Inspect and verify that they are correct before using them in production.
 
 
 ## Use generated files
 
 For each zonefile, add a statement that includes the generated zonefiles
 
-    cd /etc/bind/master
-    echo "$INCLUDE /etc/bind/master/include/example.com" >>example.com
-    echo "$INCLUDE /etc/bind/master/include/1.168.192.in-addr.arpa" >>1.168.192.in-addr.arpa
-    echo "$INCLUDE /etc/bind/master/include/0.0.0.0.1.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa"  >>0.0.0.0.1.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa
+    cd /etc/bind/primary
+    echo "$INCLUDE /etc/bind/primary/include/example.com" >>example.com
+    echo "$INCLUDE /etc/bind/primary/include/1.168.192.in-addr.arpa" >>1.168.192.in-addr.arpa
+    echo "$INCLUDE /etc/bind/primary/include/0.0.0.0.1.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa"  >>0.0.0.0.1.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa
 
 
 # Finalize setup
 
-To simplify, put this in a shell script 
+To simplify, put this in a shell script in for example /usr/bin/update-dns
 
     #!/bin/sh
     cd /opt/dnsmgr
-    ./dnsmgr.py rebuild --hostsfile /etc/dnsmgr/hosts
+    ./DNSMGR.py rebuild
 
-Every time the hosts file is changed, just rerun the script.
+Every time the zones file is changed, just rerun the update-dns script.
 
-When run, dnsmgr will check all zones in bind config, and generate include files
+When run, DNSMGR will check all zones in bind config, and generate include files
 such as
 
      /tmp/example.com
@@ -104,22 +148,22 @@ such as
 
 Each file will then be compared to these files
 
-     /etc/bind/master/include/example.com
-     /etc/bind/master/include/1.168.192.in-addr.arpa
-     /etc/bind/master/include/0.0.0.0.1.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa
+     /etc/bind/primary/include/example.com
+     /etc/bind/primary/include/1.168.192.in-addr.arpa
+     /etc/bind/primary/include/0.0.0.0.1.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa
 
 If there is a change
-- the file in /tmp/ is copied to /etc/bind/master/include
-- the SOA serial is incremented for the zone
-- the zone is reloaded in bind
+- The file in /tmp/ is copied to /etc/bind/primary/include
+- The SOA serial is incremented for the zone
+- The zone is reloaded in bind
 
 
 # Summary of configuration files
 
-This shows an example setup, in a ubuntu 14.04 system
+This shows an example setup, in a Ubuntu 14.04 system
 
 
-## dnsmgr hosts file /etc/dnsmgr/hosts
+## DNSMGR zones file /etc/dnsmgr/zones
 
 content
 
@@ -132,18 +176,6 @@ content
     www                     2001:db8:1::2
 
 
-## bind configuration file /etc/bind/named.conf
-    
-content
-
-
-    include "/etc/bind/named.conf.options";
-    include "/etc/bind/named.conf.local";
-    include "/etc/bind/named.conf.default-zones";
-
-named.conf.local is a perfect place to put zone definitions in
-
-
 ## bind zone definitions /etc/bind/named.conf.local
 
 content
@@ -151,47 +183,25 @@ content
 
     zone "example.com" {
          type master;
-         file "/etc/bind/master/example.com";
+         file "/etc/bind/primary/example.com";
     };
     zone "1.168.192.in-addr.arpa" {
          type master;
-         file "/etc/bind/master/1.168.192.in-addr.arpa";
+         file "/etc/bind/primary/1.168.192.in-addr.arpa";
     };
     zone "0.0.0.0.1.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa" {
          type master;
-         file "/etc/bind/master/0.0.0.0.1.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa";
+         file "/etc/bind/primary/0.0.0.0.1.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa";
     };
 
 
 # bind zone files
 
 Note the format of the serial number (YYYYMMDDxx), and the comment after. If the
-serial is not in this format, with the comment after the automatic increment of
-the serial will not work.
+serial is not in this format (needs to be a valid date), with the comment after,
+the automatic increment of the serial number will not work.
 
-### /etc/bind/master/example.com
-
-content
-
-
-    $TTL 900
-    @         SOA     ns1.example.com. support.example.com. (
-                              2016082231 ; serial
-                                   36000 ; refresh
-                                    3600 ; retry
-                                  604800 ; expire
-                                     900 ; minimum
-                      )
-    
-    @                       NS      ns1.example.com.
-    
-    $INCLUDE /etc/bind/master/include/example.com
-    
-    # Add additional entries below, which are unmanaged by dnsmgr
-    
-
-
-### /etc/bind/master/1.168.192.in-addr.arpa
+### /etc/bind/primary/example.com
 
 content
 
@@ -207,13 +217,35 @@ content
     
     @                       NS      ns1.example.com.
     
-    $INCLUDE /etc/bind/master/include/1.168.192.in-addr.arpa
+    $INCLUDE /etc/bind/primary/include/example.com
     
-    # Add additional entries below, which are unmanaged by dnsmgr
+    # Add additional entries below, which are unmanaged by DNSMGR
     
 
 
-### /etc/bind/master/0.0.0.0.1.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa
+### /etc/bind/primary/1.168.192.in-addr.arpa
+
+content
+
+
+    $TTL 900
+    @         SOA     ns1.example.com. support.example.com. (
+                              2016082231 ; serial
+                                   36000 ; refresh
+                                    3600 ; retry
+                                  604800 ; expire
+                                     900 ; minimum
+                      )
+    
+    @                       NS      ns1.example.com.
+    
+    $INCLUDE /etc/bind/primary/include/1.168.192.in-addr.arpa
+    
+    # Add additional entries below, which are unmanaged by DNSMGR
+    
+
+
+### /etc/bind/primary/0.0.0.0.1.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa
 
 content
 
@@ -229,24 +261,24 @@ content
     
     @                       NS      ns1.example.com.
 
-    $INCLUDE /etc/bind/master/include/
+    $INCLUDE /etc/bind/primary/include/
     
-    # Add additional entries below, which are unmanaged by dnsmgr
+    # Add additional entries below, which are unmanaged by DNSMGR
     
 
-# Files generated by dnsmgr
+# Files generated by DNSMGR
 
 
-### /etc/bind/master/include/example.com
+### /etc/bind/primary/include/example.com
 
 content
 
 
-    ; File generated by dnsmgr
+    ; File generated by DNSMGR
     ; Do not edit, changes will be overwritten
     ;
-    ; Zonefile : int.lowinger.se
-    ; Records  : 1
+    ; Zonefile : example.com
+    ; Records  : 2
     
     $ORIGIN example.com.
     
@@ -254,16 +286,16 @@ content
     www                                A       192.168.1.2
 
 
-### /etc/bind/master/include/1.168.192.in-addr.arpa
+### /etc/bind/primary/include/1.168.192.in-addr.arpa
 
 content
 
 
-    ; File generated by dnsmgr
+    ; File generated by DNSMGR
     ; Do not edit, changes will be overwritten
     ;
     ; Zonefile : 25.25.172.in-addr.arpa
-    ; Records  : 1
+    ; Records  : 2
     
     $ORIGIN 25.25.172.in-addr.arpa.
     
@@ -271,16 +303,16 @@ content
     2                                  PTR     www.example.com.      
 
 
-### /etc/bind/master/include/0.0.0.0.1.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa
+### /etc/bind/primary/include/0.0.0.0.1.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa
 
 content
 
 
-    ; File generated by dnsmgr
+    ; File generated by DNSMGR
     ; Do not edit, changes will be overwritten
     ;
     ; Zonefile : 0.0.0.0.1.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
-    ; Records  : 1
+    ; Records  : 2
     
     $ORIGIN 0.0.0.0.1.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
     

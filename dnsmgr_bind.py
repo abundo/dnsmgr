@@ -310,10 +310,13 @@ class BindMgr:
     # We always ignore these zones
     ignorezones = {
         "." : 1, 
-        "localhost" : 1, 
+        "localhost" : 1,
+        "localhost.localdomain" : 1,
         "127.in-addr.arpa" : 1,
+        "1.0.0.127.in-addr.arpa" : 1,
         "0.in-addr.arpa" : 1,
         "255.in-addr.arpa" : 1,
+        "1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa" : 1,
     }
     
     def __init__(self, 
@@ -321,12 +324,14 @@ class BindMgr:
                  port="22",
                  includedir="/etc/bind/primary/include",
                  tmpdir="/tmp/dnsmgr",
-                 directory="/var/cache/bind"):
+                 directory="/var/cache/bind",
+                 configfile=None):
         self.host = host
         self.port = port
         self.includedir = includedir
         self.tmpdir = tmpdir
         self.directory = directory
+        self.configfile = configfile
         if host:
             self.remote = AttrDict(host=host, port=port)
         else:
@@ -463,20 +468,27 @@ class BindMgr:
         self.reloadZone(zoneinfo.name)
         
 
-    def getZones(self, filename="/etc/bind/named.conf"):
+    def getZones(self, filename=None):
         """
         Parse out all zones from bind/named configuration files
         filename is the main configuration file, it then follows
         all the includes to get all of the configuration
         """
+        if filename is None:
+            filename = self.configfile
         
         self.zones = {}      # Key is zonename, value is zoneinfo
         
         def parseZone(parser):
             zone = ZoneInfo()
             zone.name = parser.getToken()
-            
-            t = parser.requireToken("{")
+            t = parser.getToken()
+            if t == "IN":
+                # just ignore
+                t = parser.getToken()
+            if t != "{":
+                raise ParserException("Missing token %s" % t)
+
             while t != "}":
                 t = parser.getToken()
                 if t == 'type':
@@ -607,12 +619,16 @@ def main():
     parser.add_argument('--tmpdir',
                         default=None,
                        )
+    parser.add_argument('--configfile',
+                        default=None,
+                       )
     
     args = parser.parse_args()
 
     bindMgrArgs = AttrDict(
-        host = args.host,
-        port = args.port,
+        host         = args.host,
+        port         = args.port,
+        configfile   = args.configfile,
         )
     if args.tmpdir is not None: bindMgrArgs.tmpdir = args.tmpdir
     

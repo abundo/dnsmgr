@@ -14,10 +14,12 @@ If include file has any changes, increase SOA serial number
 If config ok, restart named
 '''
 
+import os
 import sys
 import ipaddress
 import logging
 import pprint
+import yaml
 
 from orderedattrdict import AttrDict
 
@@ -515,6 +517,7 @@ class DNS_Mgr:
                 for value in host.value:
                     # forward
                     rr = RR(domain=host.domain, name=host.name, typ=host.typ, value=value)
+                    self.zones.add_rr(rr)
                     
                     # reverse
                     rr = RR(domain=host.domain, name=value, typ="PTR", value=host.name)
@@ -529,7 +532,7 @@ class DNS_Mgr:
         for zone in self.zones:
             self.driver.saveZone(zone)
 
-    
+
 def main():
     import argparse
 
@@ -538,20 +541,29 @@ def main():
                         default=None,
                         choices=[
                             "status",
-                            "loadhosts",
+                            "loadrecords",
                             "getzones",
                             "restart",
                             "rebuild",
                             ],
                         help='Action to run',
                        )
+    
+    # dnsmgr arguments
+    
+    parser.add_argument('--configfile',
+                        default='/etc/dnsmgr/dnsmgr.conf',
+                       )
+    parser.add_argument('--recordsfile',
+                        default=None,
+                       )
+
+    # dnsmgr driver arguments
+    
     parser.add_argument('--host',
                         default=None,
                        )
     parser.add_argument('--port',
-                        default=None,
-                       )
-    parser.add_argument('--hostsfile',
                         default=None,
                        )
     parser.add_argument('--includedir',
@@ -560,28 +572,54 @@ def main():
     parser.add_argument('--tmpdir',
                         default=None,
                        )
+    parser.add_argument('--nsconfigfile',
+                        default=None,
+                       )
     args = parser.parse_args()
+
+    # Read config file, if any
+    config = {}
     
-    bindMgrArgs = AttrDict(
-        host = args.host,
-        port = args.port,
-        )
-    if args.includedir: bindMgrArgs.includedir = args.includedir
-    if args.tmpdir:     bindMgrArgs.tmpdir     = args.tmpdir
-     
-    bindMgr = dnsmgr_bind.BindMgr(**bindMgrArgs)
+    if os.path.isfile(args.configfile):
+        with open(args.configfile, "r") as f:
+            try:
+                tmp = yaml.load(f)
+                config = tmp
+            except yaml.YAMLError as err:
+                print("Cannot load configuration file '%s', error: %s" % (args.configfile, err))
+                sys.exit(1)
+
+    if "bind" not in config:
+        config["bind"] = {}
+       
+    # Command line arguments overrides config file values
+    
+    # dnsmgr
+    if args.recordsfile:   config["recordsfile"] = args.recordsfile
+    
+    # dnsmgr_bind
+    if args.host:          config['bind']["host"]       = args.host
+    if args.port:          config['bind']["port"]       = args.port
+    if args.includedir:    config['bind']["includedir"] = args.includedir
+    if args.tmpdir:        config['bind']["tmpdir"]     = args.tmpdir
+    if args.nsconfigfile:  config['bind']["configfile"] = args.nsconfigfile    
+
+    print("config", config)
+    
+    # We now have all arguments
+    bindMgr = dnsmgr_bind.BindMgr(**config["bind"])
     mgr = DNS_Mgr(driver=bindMgr)
     
     if args.cmd == "status":
         print("Status not implemented")
         
-    elif args.cmd == "loadhosts":
-        print("Load hosts")
-        if args.hostsfile is None:
-            print("Error: you need to specify hostsfile")
+    elif args.cmd == "loadrecords":
+        print("Load recordsfile")
+        if "recordsfile" not in config or config["recordsfile"] is None:
+            print("Error: you need to specify a recordsfile")
             sys.exit(1)
         hosts = Hosts()
-        hosts.load(filename=args.hostsfile)
+        hosts.load(filename=config["recordsfile"])
         for host in hosts:
             for value in host.value:
                 tmp = "%s.%s" % (host.name, host.domain)
@@ -589,6 +627,9 @@ def main():
         
     elif args.cmd == "getzones":
         print("Get zones")
+        if "configfile" not in config["bind"] or config["bind"]["configfile"] is None:
+            print("Error: you need to specify a nsconfigfile")
+            sys.exit(1)
         zonesinfo = mgr.getZones()
         for zoneinfo in zonesinfo.values():
             print("zone")
@@ -601,12 +642,12 @@ def main():
         mgr.restart()
         
     elif args.cmd == "rebuild":
-        print("Rebuild zone data from hostsfile")
-        if args.hostsfile is None:
-            print("Error: you need to specify hostsfile")
+        print("Rebuild zone data from recordsfile")
+        if "recordsfile" not in config or config["recordsfile"] is None:
+            print("Error: you need to specify a recordsfile")
             sys.exit(1)
         hosts = Hosts()
-        hosts.load(filename=args.hostsfile)
+        hosts.load(filename=config["recordsfile"])
         mgr.rebuild(hosts=hosts)
     
     else:
