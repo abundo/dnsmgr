@@ -564,6 +564,7 @@ def main():
                         default=None,
                        )
     parser.add_argument('--port',
+                        type=str,
                         default=None,
                        )
     parser.add_argument('--includedir',
