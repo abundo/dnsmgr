@@ -59,9 +59,9 @@ class RR:
             (self.domain, self.name, self.typ, self.value, self.obj)
 
 
-class Host:
+class Record:
     """
-    Represents one host with type and values
+    Represents one record with type and values
     """
     def __init__(self, domain=None, name=None, typ=None, value=None):
         self.domain = domain
@@ -74,7 +74,7 @@ class Host:
         self.fqdn = "%s.%s" % (name, domain)
     
     def __str__(self):
-        return "Host(domain=%s, name=%s, typ=%s, value=%s)" % (self.domain, self.name, self.typ, self.value)
+        return "Record(domain=%s, name=%s, typ=%s, value=%s)" % (self.domain, self.name, self.typ, self.value)
     
     def add_value(self, value):
         if isinstance(value, list):
@@ -89,40 +89,40 @@ class Host:
         return ", ".join(res)
 
 
-class Hosts:
+class Records:
     """
-    Manage a list of hosts
+    Manage a list of records
     """    
     def __init__(self):
-        self._hosts = {}    # key is name+typ
+        self._records = {}    # key is name+typ
         self.domain = None
     
     def __len__(self):
-        return len(self._hosts)
+        return len(self._records)
 
-    def _add(self, host):
-        key = host.fqdn + chr(0) + host.typ
-        if key in self._hosts:
-            # Host exist, add additional value to it
-            self._hosts[key].add_value(host.value)
+    def _add(self, record):
+        key = record.fqdn + chr(0) + record.typ
+        if key in self._records:
+            # Record exist, add additional value to it
+            self._records[key].add_value(record.value)
         else:
-            self._hosts[key] = host
+            self._records[key] = record
 
     def __iter__(self):
-        keys = list(self._hosts.keys())
+        keys = list(self._records.keys())
         keys.sort()
         for key in keys:
-            yield self._hosts[key]
+            yield self._records[key]
             
     def items(self):
-        return self._hosts.items()
+        return self._records.items()
 
     def get(self, name):
-        return self._hosts[name]
+        return self._records[name]
 
     def load(self, filename=None):
         """
-        Read all host entries from the hosts file
+        Read all records from the records file
         Empty lines and comments starting with # or ; is ignored
 
         recursive function, to handle $INCLUDE to other files
@@ -163,8 +163,8 @@ class Hosts:
             else:
                 raise ValueError("Invalid type: %s in %s" % (typ, line))
             
-            host = Host(domain=self.domain, name=name, typ=typ, value=value)
-            self._add(host)
+            record = Record(domain=self.domain, name=name, typ=typ, value=value)
+            self._add(record)
 
 
 class Mtrie4:
@@ -478,9 +478,9 @@ class DNS_Mgr:
     def restart(self):
         self.driver.restart()
 
-    def rebuild(self, hosts=None):
+    def rebuild(self, records=None):
         """
-        Convert all host entries to resource records, and
+        Convert all Record entries to resource records, and
         update nameserver
         """
         self.zonesinfo = self.driver.getZones()
@@ -501,31 +501,31 @@ class DNS_Mgr:
 
         self.zones.init_search()
 
-        # Go through all hosts, and add them to the correct zone
-        for host in hosts:
-            if host.typ == "A":
-                for value in host.value:
+        # Go through all receords, and add them to the correct zone
+        for record in records:
+            if record.typ == "A":
+                for value in record.value:
                     # forward
-                    rr = RR(domain=host.domain, name=host.name, typ=host.typ, value=value)
+                    rr = RR(domain=record.domain, name=record.name, typ=record.typ, value=value)
                     self.zones.add_rr(rr)
                     
                     # reverse
-                    rr = RR(domain=host.domain, name=value, typ="PTR", value=host.name)
+                    rr = RR(domain=record.domain, name=value, typ="PTR", value=record.name)
                     self.zones.add_rr_reverse4(rr)
                     
-            elif host.typ == "AAAA":
-                for value in host.value:
+            elif record.typ == "AAAA":
+                for value in record.value:
                     # forward
-                    rr = RR(domain=host.domain, name=host.name, typ=host.typ, value=value)
+                    rr = RR(domain=record.domain, name=record.name, typ=record.typ, value=value)
                     self.zones.add_rr(rr)
                     
                     # reverse
-                    rr = RR(domain=host.domain, name=value, typ="PTR", value=host.name)
+                    rr = RR(domain=record.domain, name=value, typ="PTR", value=record.name)
                     self.zones.add_rr_reverse6(rr)
                     
             else:
-                for value in host.value:
-                    rr = RR(domain=host.domain, name=host.name, typ=host.typ, value=value)
+                for value in record.value:
+                    rr = RR(domain=record.domain, name=record.name, typ=record.typ, value=value)
                     self.zones.add_rr(rr)
                 
         # Write the files to the backend
@@ -619,12 +619,12 @@ def main():
         if "recordsfile" not in config or config["recordsfile"] is None:
             print("Error: you need to specify a recordsfile")
             sys.exit(1)
-        hosts = Hosts()
-        hosts.load(filename=config["recordsfile"])
-        for host in hosts:
-            for value in host.value:
-                tmp = "%s.%s" % (host.name, host.domain)
-                print("%-30s %-8s %s" % (tmp, host.typ, value))
+        records = Records()
+        records.load(filename=config["recordsfile"])
+        for record in records:
+            for value in record.value:
+                tmp = "%s.%s" % (record.name, record.domain)
+                print("%-30s %-8s %s" % (tmp, record.typ, value))
         
     elif args.cmd == "getzones":
         print("Get zones")
@@ -647,9 +647,9 @@ def main():
         if "recordsfile" not in config or config["recordsfile"] is None:
             print("Error: you need to specify a recordsfile")
             sys.exit(1)
-        hosts = Hosts()
-        hosts.load(filename=config["recordsfile"])
-        mgr.rebuild(hosts=hosts)
+        records = Records()
+        records.load(filename=config["recordsfile"])
+        mgr.rebuild(records=records)
     
     else:
         print("Error: unknown command %s" % args.cmd)

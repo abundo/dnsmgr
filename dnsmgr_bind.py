@@ -307,31 +307,21 @@ class BindMgr:
     Helper to manage a bind instance
     """
     
-    # We always ignore these zones
-    ignorezones = {
-        "." : 1, 
-        "localhost" : 1,
-        "localhost.localdomain" : 1,
-        "127.in-addr.arpa" : 1,
-        "1.0.0.127.in-addr.arpa" : 1,
-        "0.in-addr.arpa" : 1,
-        "255.in-addr.arpa" : 1,
-        "1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa" : 1,
-    }
-    
     def __init__(self, 
                  host=None,
                  port="22",
                  includedir="/etc/bind/primary/include",
                  tmpdir="/tmp/dnsmgr",
                  directory="/var/cache/bind",
-                 configfile=None):
+                 configfile=None,
+                 ignorezones={}):
         self.host = host
         self.port = port
         self.includedir = includedir
         self.tmpdir = tmpdir
         self.directory = directory
         self.configfile = configfile
+        self.ignorezones = ignorezones
         if host:
             self.remote = AttrDict(host=host, port=port)
         else:
