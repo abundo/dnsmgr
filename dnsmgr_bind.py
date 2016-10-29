@@ -301,7 +301,7 @@ class FileMgr:
         sum2 = dest.sha256sum()
         return sum1 == sum2
 
-    
+
 class BindMgr:
     """
     Helper to manage a bind instance
@@ -536,7 +536,7 @@ class BindMgr:
         if zone.typ == "forward":
             for rrlist in zone:
                 for rr in rrlist.__iter__():
-                    f.write("%-30s  %-8s    %s\n" % (rr.name, rr.typ, rr.value))
+                    f.write("%-30s  %5s  %-8s    %s\n" % (rr.name, rr.ttl, rr.typ, rr.value))
             
         elif zone.typ == "reverse4":
             st = -len(zone.zone) - 1
@@ -544,7 +544,7 @@ class BindMgr:
                 for rr in rrlist:
                     name = ipv4_addr_to_reverse(str(rr.name)) + ".in-addr.arpa"
                     name = name[:st]
-                    f.write("%-30s  %s    %s.%s.\n" % (name, rr.typ, rr.value, rr.domain))
+                    f.write("%-30s  %5s  %s    %s.%s.\n" % (name, rr.ttl, rr.typ, rr.value, rr.domain))
         
         
         elif zone.typ == "reverse6":
@@ -553,7 +553,7 @@ class BindMgr:
                 for rr in rrlist:
                     name = ipv6_addr_to_reverse(rr.name) + ".ip6.arpa"
                     name = name[:st]
-                    f.write("%-50s  %s    %s.%s.\n" % (name, rr.typ, rr.value, rr.domain))
+                    f.write("%-50s  %5s  %s    %s.%s.\n" % (name, rr.ttl, rr.typ, rr.value, rr.domain))
 
         else:
             print("Error: zone %s, unknown zone type %s" % (zone.name, zone.typ))

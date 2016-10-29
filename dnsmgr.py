@@ -46,8 +46,9 @@ class RR:
     """
     One Resource Record
     """
-    def __init__(self, domain=None, name=None, typ=None, value=None, obj=None):
+    def __init__(self, domain=None, ttl="", name=None, typ=None, value=None, obj=None):
         self.domain = domain
+        self.ttl = ttl
         self.name = name
         self.fqdn = "%s.%s" % (self.name, self.domain)
         self.typ = typ.upper()
@@ -63,8 +64,9 @@ class Record:
     """
     Represents one record with type and values
     """
-    def __init__(self, domain=None, name=None, typ=None, value=None):
+    def __init__(self, domain=None, ttl="", name=None, typ=None, value=None):
         self.domain = domain
+        self.ttl = ttl
         self.name = name
         self.typ = typ
         if isinstance(value, list):
@@ -74,7 +76,7 @@ class Record:
         self.fqdn = "%s.%s" % (name, domain)
     
     def __str__(self):
-        return "Record(domain=%s, name=%s, typ=%s, value=%s)" % (self.domain, self.name, self.typ, self.value)
+        return "Record(domain=%s, ttl=%s, name=%s, typ=%s, value=%s)" % (self.domain, self.ttl, self.name, self.typ, self.value)
     
     def add_value(self, value):
         if isinstance(value, list):
@@ -144,26 +146,27 @@ class Records:
                 continue
     
             tmp = line.split(None, 3)
-            if len(tmp) != 3:
+            if len(tmp) < 2:
                 raise ValueError("Invalid syntax: %s" % line)
             
-            name = tmp[0] 
+            name = tmp.pop(0)
             if name != "@" and not verify_dnsname(name):
                 raise ValueError("Invalid name: %s in %s" % (name, line))
 
-            typ = tmp[1].upper()
-            value = tmp[2]
+            if tmp[0].isdigit():
+                ttl = tmp.pop(0)
+            else:
+                ttl = ""
+            typ = tmp.pop(0).upper()
+            value = tmp.pop(0)
             if typ == "A":
                 value = ipaddress.IPv4Address(value)
             elif typ == "AAAA":
                 value = ipaddress.IPv6Address(value)
-            elif typ in ["CNAME", "MX", "NS", "PTR", "SRV", "SSHFP", "TLSA", "TSIG", "TXT"]:
-                pass
-            
-            else:
+            elif typ not in ["CNAME", "MX", "NS", "PTR", "SRV", "SSHFP", "TLSA", "TSIG", "TXT"]:
                 raise ValueError("Invalid type: %s in %s" % (typ, line))
             
-            record = Record(domain=self.domain, name=name, typ=typ, value=value)
+            record = Record(domain=self.domain, ttl=ttl, name=name, typ=typ, value=value)
             self._add(record)
 
 
@@ -506,26 +509,26 @@ class DNS_Mgr:
             if record.typ == "A":
                 for value in record.value:
                     # forward
-                    rr = RR(domain=record.domain, name=record.name, typ=record.typ, value=value)
+                    rr = RR(domain=record.domain, ttl=record.ttl, name=record.name, typ=record.typ, value=value)
                     self.zones.add_rr(rr)
                     
                     # reverse
-                    rr = RR(domain=record.domain, name=value, typ="PTR", value=record.name)
+                    rr = RR(domain=record.domain, ttl=record.ttl,name=value, typ="PTR", value=record.name)
                     self.zones.add_rr_reverse4(rr)
                     
             elif record.typ == "AAAA":
                 for value in record.value:
                     # forward
-                    rr = RR(domain=record.domain, name=record.name, typ=record.typ, value=value)
+                    rr = RR(domain=record.domain, ttl=record.ttl,name=record.name, typ=record.typ, value=value)
                     self.zones.add_rr(rr)
                     
                     # reverse
-                    rr = RR(domain=record.domain, name=value, typ="PTR", value=record.name)
+                    rr = RR(domain=record.domain, ttl=record.ttl, name=value, typ="PTR", value=record.name)
                     self.zones.add_rr_reverse6(rr)
                     
             else:
                 for value in record.value:
-                    rr = RR(domain=record.domain, name=record.name, typ=record.typ, value=value)
+                    rr = RR(domain=record.domain, ttl=record.ttl, name=record.name, typ=record.typ, value=value)
                     self.zones.add_rr(rr)
                 
         # Write the files to the backend
@@ -605,7 +608,7 @@ def main():
     if args.tmpdir:        config['bind']["tmpdir"]     = args.tmpdir
     if args.nsconfigfile:  config['bind']["configfile"] = args.nsconfigfile    
 
-    print("config", config)
+    # print("config", config)
     
     # We now have all arguments
     bindMgr = dnsmgr_bind.BindMgr(**config["bind"])
@@ -624,7 +627,7 @@ def main():
         for record in records:
             for value in record.value:
                 tmp = "%s.%s" % (record.name, record.domain)
-                print("%-30s %-8s %s" % (tmp, record.typ, value))
+                print("%-30s %5s %-8s %s" % (tmp, record.ttl, record.typ, value))
         
     elif args.cmd == "getzones":
         print("Get zones")
