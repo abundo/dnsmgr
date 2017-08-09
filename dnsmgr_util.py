@@ -10,6 +10,7 @@ import logging
 import pprint
 import yaml
 import importlib.machinery
+import builtins
 
 from orderedattrdict import AttrDict
 
@@ -46,10 +47,7 @@ class AddSysPath:
 def import_file(pythonFile):
     dir_name = os.path.dirname(pythonFile)
     module_name = os.path.basename(pythonFile)
-    if module_name.endswith(".py"):
-        module_name = module_name[:-3]
-    print("dir_name", dir_name, "module_name", module_name)
-#    module_name = os.path.splitext(module_name)[0]
+    module_name = os.path.splitext(module_name)[0]
     loader = importlib.machinery.SourceFileLoader(module_name, pythonFile)
     with AddSysPath(dir_name):
         return loader.load_module()
