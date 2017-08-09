@@ -401,9 +401,6 @@ def main():
         
     elif args.cmd == "rebuild":
         print("Rebuild zone data from recordsfile")
-        if "recordsfile" not in config or config.recordsfile is None:
-            print("Error: you need to specify a recordsfile")
-            sys.exit(1)
         mgr.load(config)
         mgr.rebuild()
     
