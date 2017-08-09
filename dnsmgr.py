@@ -22,7 +22,6 @@ import yaml
 from orderedattrdict import AttrDict
 
 import dnsmgr_util as util
-import dnsmgr_bind
 
 
 class Records:
@@ -221,7 +220,7 @@ class DNS_Mgr:
             config.records = [AttrDict( type='file_loader.py', name=config.recordsfile,) ]
 
         for loader in config.records:
-            print("loader", loader)
+            log.debug("Loading records using %s from %s" % (loader.type, loader.name))
             # Import the loader to use
             loader_module = util.import_file(loader.type)
             
