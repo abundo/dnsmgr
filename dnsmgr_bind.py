@@ -2,7 +2,7 @@
 '''
 Class to handle ISC bind nameserver
 
-If hostname specified, manage a bind instance over ssh, 
+If hostname is specified, manage a bind instance over ssh, 
 otherwise manage a local bind
 
 It is assumed SSH is configured for passwordless login.
@@ -348,6 +348,7 @@ class BindMgr:
         """
         reload zone content, one or all zones
         """
+        log.info("Reloading zone %s" % zone)
         cmd = ["sudo", "/usr/sbin/rndc", "reload"]
         if zone:
             cmd.append(zone)
