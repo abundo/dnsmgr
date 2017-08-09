@@ -227,7 +227,7 @@ class DNS_Mgr:
             obj = loader_module.Loader()
             obj.load(loader.name, self.records)
 
-    def rebuild(self, records=None):
+    def update(self, records=None):
         """
         Convert all Record entries to resource records, and
         update nameserver
@@ -292,10 +292,10 @@ def main():
                         default=None,
                         choices=[
                             "status",
-                            "loadrecords",
+                            "load",
                             "getzones",
                             "restart",
-                            "rebuild",
+                            "update",
                             ],
                         help='Action to run',
                        )
@@ -373,7 +373,7 @@ def main():
     if args.cmd == "status":
         print("Status not implemented")
         
-    elif args.cmd == "loadrecords":
+    elif args.cmd == "load":
         print("Load records")
         
         mgr.load(config)
@@ -399,10 +399,10 @@ def main():
         print("Restart DNS server")
         mgr.restart()
         
-    elif args.cmd == "rebuild":
-        print("Rebuild zone data from recordsfile")
+    elif args.cmd == "update":
+        print("Update zone data from recordsfile")
         mgr.load(config)
-        mgr.rebuild()
+        mgr.update()
     
     else:
         print("Error: unknown command %s" % args.cmd)
