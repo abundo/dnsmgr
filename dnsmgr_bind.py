@@ -302,7 +302,7 @@ class FileMgr:
         return sum1 == sum2
 
 
-class BindMgr:
+class NS_Manager:
     """
     Helper to manage a bind instance
     """

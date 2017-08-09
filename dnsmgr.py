@@ -360,8 +360,16 @@ def main():
     # print("config", config)
     
     # We now have all arguments
-    bindMgr = dnsmgr_bind.BindMgr(**config.bind)
-    mgr = DNS_Mgr(driver=bindMgr)
+    
+    # Load the driver
+    if 'ns' in config:
+        ns_driver_module = util.import_file(config.ns.driver)
+        ns_driver = ns_driver_module.NS_Manager(**config.ns.config)
+    else:
+        # for compability, remove in a future version
+        import dnsmgr_bind
+        ns_driver = dnsmgr_bind.NS_Manager(**config.bind)
+    mgr = DNS_Mgr(driver=ns_driver)
     
     if args.cmd == "status":
         print("Status not implemented")
