@@ -622,8 +622,8 @@ def main():
         configfile   = args.configfile,
         )
     if args.tmpdir is not None: bindMgrArgs.tmpdir = args.tmpdir
-    
-    bindMgr = BindMgr(**bindMgrArgs)
+
+    bindMgr = NS_Manager(**bindMgrArgs)
     
     if args.cmd == "status":
         print("status not implemented")
