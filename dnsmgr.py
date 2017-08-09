@@ -215,8 +215,7 @@ class DNS_Mgr:
         if "records" not in config:
             # Backwards compatible, will be removed in the future
             if "recordsfile" not in config or config.recordsfile is None:
-                print("Error: you need to specify a recordsfile")
-                sys.exit(1)
+                util.die("Error: you need to specify a recordsfile")
             config.records = [AttrDict( type='file_loader.py', name=config.recordsfile,) ]
 
         for loader in config.records:
@@ -295,8 +294,7 @@ class BaseCLI(util.BaseCLI):
             try:
                 self.config = util.yaml_load(self.args.configfile)
             except util.UtilException as err:
-                print("Cannot load configuration file '%s', error: %s" % (self.args.configfile, err))
-                sys.exit(1)
+                util.die("Cannot load configuration file '%s', error: %s" % (self.args.configfile, err))
         else:
             log.warning("No configuration file found at %s" % self.args.configfile)
     
@@ -330,8 +328,7 @@ class CLI_getzones(BaseCLI):
     def run(self):
         print("Get zones")
         if "configfile" not in self.config.bind or self.config.bind.configfile is None:
-            print("Error: you need to specify a nsconfigfile")
-            sys.exit(1)
+            util.die("Error: you need to specify a nsconfigfile")
         zonesinfo = self.mgr.getZones()
         for zoneinfo in zonesinfo.values():
             print("zone")

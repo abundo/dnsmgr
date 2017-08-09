@@ -82,8 +82,7 @@ def main():
     args = parser.parse_args()
 
     if not os.path.isfile(args.file):
-        print("Cannot find file %s" % args.file)
-        sys.exit(1)
+        util.die("Cannot find file %s" % args.file)
 
     records = util.Records()
     records.load(args.file)
