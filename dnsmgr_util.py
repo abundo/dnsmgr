@@ -34,7 +34,6 @@ def setLogLevel(level):
         'debug': logging.DEBUG, 
          }
     if level in m:
-        print("setting logging to %s (%s)" % (level, m[level]))
         logging.basicConfig(level=m[level])
     else:
         die('Incorrect log level %s' % level)

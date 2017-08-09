@@ -300,16 +300,6 @@ class BaseCLI(util.BaseCLI):
         else:
             log.warning("No configuration file found at %s" % self.args.configfile)
     
-        # dnsmgr
-        if self.args.recordsfile:   self.config.recordsfile = self.args.recordsfile
-        
-        # dnsmgr_bind
-        if self.args.host:          self.config.bind.host       = self.args.host
-        if self.args.port:          self.config.bind.port       = self.args.port
-        if self.args.includedir:    self.config.bind.includedir = self.args.includedir
-        if self.args.tmpdir:        self.config.bind.tmpdir     = self.args.tmpdir
-        if self.args.nsconfigfile:  self.config.bind.configfile = self.args.nsconfigfile
-            
         if "bind" not in self.config:
             self.config.bind = AttrDict()
         
@@ -325,27 +315,8 @@ class BaseCLI(util.BaseCLI):
     
 
     def add_arguments2(self):
-        self.parser.add_argument('--host',
-                                 default=None,
-                                 )
-        self.parser.add_argument('--port',
-                                 type=str,
-                                 default=None,
-                                 )
-        self.parser.add_argument('--includedir',
-                                 default=None,
-                                 )
-        self.parser.add_argument('--tmpdir',
-                                 default=None,
-                                 )
-        self.parser.add_argument('--nsconfigfile',
-                                 default=None,
-                                 )
         self.parser.add_argument('--configfile',
                                  default='/etc/dnsmgr/dnsmgr.conf',
-                                 )
-        self.parser.add_argument('--recordsfile',
-                                 default='/etc/dnsmgr/records',
                                  )
         self.parser.add_argument('--loglevel',
                                  choices=['info', 'warning', 'error', 'debug'],
