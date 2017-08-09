@@ -284,128 +284,126 @@ class DNS_Mgr:
             self.driver.saveZone(zone)
 
 
-def main():
-    import argparse
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('cmd',
-                        default=None,
-                        choices=[
-                            "status",
-                            "load",
-                            "getzones",
-                            "restart",
-                            "update",
-                            ],
-                        help='Action to run',
-                       )
+class BaseCLI(util.BaseCLI):
     
-    # dnsmgr arguments
-    
-    parser.add_argument('--configfile',
-                        default='/etc/dnsmgr/dnsmgr.conf',
-                       )
-    parser.add_argument('--recordsfile',
-                        default=None,
-                       )
-
-    # dnsmgr driver arguments
-    
-    parser.add_argument('--host',
-                        default=None,
-                       )
-    parser.add_argument('--port',
-                        type=str,
-                        default=None,
-                       )
-    parser.add_argument('--includedir',
-                        default=None,
-                       )
-    parser.add_argument('--tmpdir',
-                        default=None,
-                       )
-    parser.add_argument('--nsconfigfile',
-                        default=None,
-                       )
-    args = parser.parse_args()
-
-    # Read config file, if any
-    config = {}
-    
-    if os.path.isfile(args.configfile):
-        try:
-            config = util.yaml_load(args.configfile)
-        except util.UtilException as err:
-            print("Cannot load configuration file '%s', error: %s" % (args.configfile, err))
-            sys.exit(1)
-    else:
-        log.warning("No configuration file found at %s" % args.configfile)
-
-    if "bind" not in config:
-        config.bind = AttrDict()
-       
-    # Command line arguments overrides config file values
-    
-    # dnsmgr
-    if args.recordsfile:   config.recordsfile = args.recordsfile
-    
-    # dnsmgr_bind
-    if args.host:          config.bind.host       = args.host
-    if args.port:          config.bind.port       = args.port
-    if args.includedir:    config.bind.includedir = args.includedir
-    if args.tmpdir:        config.bind.tmpdir     = args.tmpdir
-    if args.nsconfigfile:  config.bind.configfile = args.nsconfigfile    
-
-    # print("config", config)
-    
-    # We now have all arguments
-    
-    # Load the driver
-    if 'ns' in config:
-        ns_driver_module = util.import_file(config.ns.driver)
-        ns_driver = ns_driver_module.NS_Manager(**config.ns.config)
-    else:
-        # for compability, remove in a future version
-        import dnsmgr_bind
-        ns_driver = dnsmgr_bind.NS_Manager(**config.bind)
-    mgr = DNS_Mgr(driver=ns_driver)
-    
-    if args.cmd == "status":
-        print("Status not implemented")
+    def __init__(self):
+        super().__init__()
+        util.setLogLevel(self.args.loglevel)
         
-    elif args.cmd == "load":
-        print("Load records")
+        if os.path.isfile(self.args.configfile):
+            try:
+                self.config = util.yaml_load(self.args.configfile)
+            except util.UtilException as err:
+                print("Cannot load configuration file '%s', error: %s" % (self.args.configfile, err))
+                sys.exit(1)
+        else:
+            log.warning("No configuration file found at %s" % self.args.configfile)
+    
+        # dnsmgr
+        if self.args.recordsfile:   self.config.recordsfile = self.args.recordsfile
         
-        mgr.load(config)
+        # dnsmgr_bind
+        if self.args.host:          self.config.bind.host       = self.args.host
+        if self.args.port:          self.config.bind.port       = self.args.port
+        if self.args.includedir:    self.config.bind.includedir = self.args.includedir
+        if self.args.tmpdir:        self.config.bind.tmpdir     = self.args.tmpdir
+        if self.args.nsconfigfile:  self.config.bind.configfile = self.args.nsconfigfile
             
-        for record in mgr.records:
-            for value in record.value:
-                tmp = "%s.%s" % (record.name, record.domain)
-                print("%-30s %5s %-8s %s" % (tmp, record.ttl, record.typ, value))
+        if "bind" not in self.config:
+            self.config.bind = AttrDict()
         
-    elif args.cmd == "getzones":
+        # Load the driver
+        if 'ns' in self.config:
+            ns_driver_module = util.import_file(self.config.ns.driver)
+            ns_driver = ns_driver_module.NS_Manager(**self.config.ns.config)
+        else:
+            # for compability, remove in a future version
+            import dnsmgr_bind
+            ns_driver = dnsmgr_bind.NS_Manager(**self.config.bind)
+        self.mgr = DNS_Mgr(driver=ns_driver)
+    
+
+    def add_arguments2(self):
+        self.parser.add_argument('--host',
+                                 default=None,
+                                 )
+        self.parser.add_argument('--port',
+                                 type=str,
+                                 default=None,
+                                 )
+        self.parser.add_argument('--includedir',
+                                 default=None,
+                                 )
+        self.parser.add_argument('--tmpdir',
+                                 default=None,
+                                 )
+        self.parser.add_argument('--nsconfigfile',
+                                 default=None,
+                                 )
+        self.parser.add_argument('--configfile',
+                                 default='/etc/dnsmgr/dnsmgr.conf',
+                                 )
+        self.parser.add_argument('--recordsfile',
+                                 default='/etc/dnsmgr/records',
+                                 )
+        self.parser.add_argument('--loglevel',
+                                 choices=['info', 'warning', 'error', 'debug'],
+                                 help='Set loglevel, one of < info | warning | error | debug >', 
+                                 default='info'
+                                 )
+
+
+class CLI_getzones(BaseCLI):
+    
+    def run(self):
         print("Get zones")
-        if "configfile" not in config.bind or config.bind.configfile is None:
+        if "configfile" not in self.config.bind or self.config.bind.configfile is None:
             print("Error: you need to specify a nsconfigfile")
             sys.exit(1)
-        zonesinfo = mgr.getZones()
+        zonesinfo = self.mgr.getZones()
         for zoneinfo in zonesinfo.values():
             print("zone")
             print("    name", zoneinfo.name)
             print("    type", zoneinfo.typ)
             print("    file", zoneinfo.file)
-        
-    elif args.cmd == "restart":
-        print("Restart DNS server")
-        mgr.restart()
-        
-    elif args.cmd == "update":
-        print("Update zone data from recordsfile")
-        mgr.load(config)
-        mgr.update()
+
+class CLI_load(BaseCLI):
     
-    else:
-        print("Error: unknown command %s" % args.cmd)
+    def run(self):
+        self.mgr.load(self.config)
+            
+        for record in self.mgr.records:
+            for value in record.value:
+                tmp = "%s.%s" % (record.name, record.domain)
+                print("%-30s %5s %-8s %s" % (tmp, record.ttl, record.typ, value))
+
+
+class CLI_restart(BaseCLI):
+    
+    def run(self):
+        print("Restart DNS server")
+        self.mgr.restart()
+
+
+class CLI_status(BaseCLI):
+    
+    def run(self):
+        print("Not implemented")
+
+
+class CLI_update(BaseCLI):
+    
+    def run(self):
+        print("Update zone data from recordsfile")
+        self.mgr.load(self.config)
+        self.mgr.update()
+
+
+def main():
+    util.MyCLI(__name__)
+        
+
     
 if __name__ == "__main__":
     main()

@@ -18,14 +18,26 @@ pp = pprint.PrettyPrinter(indent=4)
 
 allowed_chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-."
 
-# Setup logger
-logging.basicConfig(level=logging.INFO)
-builtins.log = logging.getLogger(__name__)
-
-
 def die(msg, exitcode=1):
     print(msg)
     sys.exit(exitcode)
+
+
+# Setup logger
+builtins.log = logging.getLogger(__name__)
+
+def setLogLevel(level):
+    m = { 
+        'info': logging.INFO,
+        'warning': logging.WARNING,
+        'error': logging.ERROR,
+        'debug': logging.DEBUG, 
+         }
+    if level in m:
+        print("setting logging to %s (%s)" % (level, m[level]))
+        logging.basicConfig(level=m[level])
+    else:
+        die('Incorrect log level %s' % level)
 
 
 class UtilException(Exception):
@@ -512,3 +524,53 @@ class Zones:
             log.warning("Ignored, NOT handling reverse DNS for %s", rr)
 
 
+class BaseCLI:
+    
+    def __init__(self):
+        import argparse
+        self.parser = argparse.ArgumentParser()
+        self.add_arguments2()
+        self.add_arguments()
+        self.args = self.parser.parse_args()
+        
+    def add_arguments2(self):
+        """Superclass overrides this to add additional arguments"""
+
+    def add_arguments(self):
+        """Superclass overrides this to add additional arguments"""
+
+    def run(self):
+        raise ValueError("You must override the run() method")
+
+
+class MyCLI:
+    """
+    Helper class, to construct a CLI
+    """
+    def __init__(self, name, **kwargs):
+        # get all CLI modules
+        self.cmds = AttrDict()
+        current_module = sys.modules[name]
+        for key in dir(current_module):
+            if key.startswith("CLI_"):
+                cls = getattr(current_module, key)
+                self.cmds[key[4:]] = cls
+    
+        # get first arg, use as command
+        if len(sys.argv) < 2:
+            self.usage("No command specified, choose one of:")
+        
+        cmd = sys.argv.pop(1)
+        if not cmd in self.cmds:
+            self.usage("Unknown command '%s'" % cmd)
+    
+        obj = self.cmds[cmd](**kwargs)
+        obj.run()
+        
+
+    def usage(self, msg):
+        if msg: 
+            print(msg)
+        for cmd in self.cmds:
+            print("   ", cmd)
+        sys.exit(1)
