@@ -5,90 +5,29 @@ Classes to handle DNS, with zones
 Requires a driver, for example dnsmgr_bind, that does
 all the implementation specific details
 
-Extract all network elements IP addresses
+Load all resource records
 Create forward A/AAAA records
 Create reverse IPv4 PTR records
 Create reverse IPv6 PTR records
 Create include file with zone entries
-If include file has any changes, increase SOA serial number
-If config ok, restart named
+If include file has any changes, increase SOA serial number and reload zone
 '''
 
 import os
 import sys
 import ipaddress
 import logging
-import pprint
 import yaml
 
 from orderedattrdict import AttrDict
 
+import dnsmgr_util as util
 import dnsmgr_bind
 
-pp = pprint.PrettyPrinter(indent=4)
-
-allowed_chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-."
 
 # Setup logger
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
-
-
-def verify_dnsname(name):
-    """Check if a name contains valid characters"""
-    for n in name:
-        if n not in allowed_chars:
-            return False
-    return True
-
-
-class RR:
-    """
-    One Resource Record
-    """
-    def __init__(self, domain=None, ttl="", name=None, typ=None, value=None, obj=None):
-        self.domain = domain
-        self.ttl = ttl
-        self.name = name
-        self.fqdn = "%s.%s" % (self.name, self.domain)
-        self.typ = typ.upper()
-        self.value = value
-        self.obj = obj
-
-    def __str__(self):
-        return "domain=%s, name=%s, typ=%s, value=%s obj=%s" % \
-            (self.domain, self.name, self.typ, self.value, self.obj)
-
-
-class Record:
-    """
-    Represents one record with type and values
-    """
-    def __init__(self, domain=None, ttl="", name=None, typ=None, value=None):
-        self.domain = domain
-        self.ttl = ttl
-        self.name = name
-        self.typ = typ
-        if isinstance(value, list):
-            self.value = value
-        else:
-            self.value = [value]
-        self.fqdn = "%s.%s" % (name, domain)
-    
-    def __str__(self):
-        return "Record(domain=%s, ttl=%s, name=%s, typ=%s, value=%s)" % (self.domain, self.ttl, self.name, self.typ, self.value)
-    
-    def add_value(self, value):
-        if isinstance(value, list):
-            self.value += value
-        else:
-            self.value.append(value)
-        
-    def value_as_str(self):
-        res = []
-        for value in self.value:
-            res.append(str(value))
-        return ", ".join(res)
 
 
 class Records:
@@ -102,7 +41,7 @@ class Records:
     def __len__(self):
         return len(self._records)
 
-    def _add(self, record):
+    def add(self, record):
         key = record.fqdn + chr(0) + record.typ
         if key in self._records:
             # Record exist, add additional value to it
@@ -121,210 +60,6 @@ class Records:
 
     def get(self, name):
         return self._records[name]
-
-    def load(self, filename=None):
-        """
-        Read all records from the records file
-        Empty lines and comments starting with # or ; is ignored
-
-        recursive function, to handle $INCLUDE to other files
-        """
-        for line in open(filename, "r"):
-            line = line.rstrip()
-            if line == "" or line[0] == "#" or line[0] == ";":
-                continue
-            if line[0] == "$":
-                tmp = line.split(None, 2)
-                if len(tmp) < 2:
-                    raise ValueError("Invalid $ syntax: %s" % line)
-                elif tmp[0] == "$DOMAIN":
-                    self.domain = tmp[1]
-                elif tmp[0] == "$INCLUDE":
-                    self.load(filename=tmp[1])
-                else:
-                    raise ValueError("Invalid command %s" % tmp[0])
-                continue
-    
-            tmp = line.split(None, 3)
-            if len(tmp) < 2:
-                raise ValueError("Invalid syntax: %s" % line)
-            
-            name = tmp.pop(0)
-            if name != "@" and not verify_dnsname(name):
-                raise ValueError("Invalid name: %s in %s" % (name, line))
-
-            if tmp[0].isdigit():
-                ttl = tmp.pop(0)
-            else:
-                ttl = ""
-            typ = tmp.pop(0).upper()
-            value = tmp.pop(0)
-            if typ == "A":
-                value = ipaddress.IPv4Address(value)
-            elif typ == "AAAA":
-                value = ipaddress.IPv6Address(value)
-            elif typ not in ["CNAME", "MX", "NS", "PTR", "SRV", "SSHFP", "TLSA", "TSIG", "TXT"]:
-                raise ValueError("Invalid type: %s in %s" % (typ, line))
-            
-            record = Record(domain=self.domain, ttl=ttl, name=name, typ=typ, value=value)
-            self._add(record)
-
-
-class Mtrie4:
-    """
-    Implements Longest Prefix Match, for IPv4 addresses
-    Uses a mtrie with 8-8-8-8 distribution
-    
-    Note, there are no functionality to remove prefixes
-    Note, add prefixes in correct order, start with all /32 down to /1
-    """
-    
-    class Node:
-        def __init__(self):
-            self.child = {}
-            self.obj = {}
-        
-        def __repr__(self):
-            return "Node(%s, %s)" % (self.child, self.obj)
-   
-    def __init__(self):
-        self.root = self.Node()
-    
-    def add_prefix(self, prefix, obj):
-        p = self.root
-        ip = str(prefix[0]).split(".")
-        l = prefix.prefixlen
-
-        while l > 8:
-            i = int(ip.pop(0))
-            if i not in p.child:
-                p.child[i] = self.Node()
-            p = p.child[i]
-            l -= 8
-        
-        i = int(ip.pop(0))
-        b = i
-        e = i + (128 >> l)
-        for ix in range(b, e + 1):
-            if ix not in p.obj:
-                p.obj[ix] = obj
-
-    def lookup(self, addr):
-        """
-        Search using LPM
-        Returns obj if found
-        If not found, returns None
-        """
-        p = self.root
-        ip = addr.split(".")
-        found = None
-        while True:
-            i = int(ip.pop(0))
-            if i in p.obj:
-                found = p.obj[i]
-            if i not in p.child:
-                return found
-            p = p.child[i]
-
-
-class Mtrie6:
-    """
-    Implements Longest Prefix Match, for IPv6 addresses
-    
-    Note, there are no functionality to remove prefixes
-    """
-    class Node:
-        def __init__(self):
-            self.child = {}
-            self.obj = {}
-        
-        def __repr__(self):
-            return "Node(%s, %s)" % (self.child, self.obj)
-
-    def __init__(self):
-        self.root = self.Node()
-
-    
-    def add_prefix(self, prefix, obj):
-        p = self.root
-        ip = prefix.exploded.replace(":", "")
-        l = prefix.prefixlen
-        if l % 4 != 0:
-            raise ValueError("Cannot handle IPv6 prefixes on non-nibbles")
-
-        while l > 4:
-            i = int(ip[0], 16)
-            ip = ip[1:]
-            if i not in p.child:
-                p.child[i] = self.Node()
-            p = p.child[i]
-            l -= 4
-        
-        i = int(ip[0])
-        ip = ip[1:]
-        b = i
-        e = i + (128 >> l)
-        for ix in range(b, e + 1):
-            if ix not in p.obj:
-                p.obj[ix] = obj
-
-
-    def lookup(self, addr):
-        """
-        Search using LPM
-        Returns obj if found
-        If not found, returns None
-        """
-        addr = ipaddress.IPv6Address(addr)
-        p = self.root
-        ip = addr.exploded.replace(":", "")
-        found = None
-        while True:
-            i = int(ip[0], 16)
-            ip = ip[1:]
-            if i in p.obj:
-                found = p.obj[i]
-            if i not in p.child:
-                return found
-            p = p.child[i]
-        
-
-class Zone:
-    
-    def __init__(self, zone, zonefile=None, typ=None, prefix=None):
-        self.zone = zone
-        self.typ = typ
-        self.prefix = prefix
-        if zonefile:
-            self.zonefile = zonefile
-        else:
-            self.zonefile = zone
-        
-        self.records = {}
-        self.l = len(self.zone)
-
-    def __str__(self):
-        return "Zone(name %s, typ %s, prefix %s, zonefile %s)" % \
-            (self.zone, self.typ, self.prefix, self.zonefile)
- 
-    def __repr__(self):
-        return "Zone %s" % self.zone
- 
-    def __len__(self):
-        return len(self.records)
-
-    def __iter__(self):
-        keys = list(self.records.keys())
-        keys.sort()
-        for key in keys:
-            yield self.records[key]
-
-    def add_rr(self, rr):
-        key = str(rr.name) + rr.domain
-        if key in self.records:
-            self.records[key].append(rr)
-        else:
-            self.records[key] = [rr]
 
 
 class Zones:
@@ -350,8 +85,8 @@ class Zones:
         Sort the IPv4 and IPv6 prefixes and create a data structure for
         fast longest prefix match
         """
-        self.lpm4 = Mtrie4()
-        self.lpm6 = Mtrie6()
+        self.lpm4 = util.Mtrie4()
+        self.lpm6 = util.Mtrie6()
         
         self.reverse4.sort(key=lambda x: x.prefix.prefixlen, reverse=True)
         for zone in self.reverse4:
@@ -370,7 +105,7 @@ class Zones:
         Forward zones
         Keep sorted on longest zonename
         """
-        a = Zone(zone, typ="forward")
+        a = util.Zone(zone, typ="forward")
         tmp = self.zones + [a]
         tmp.sort(key=lambda x: len(x.zone))
         self.zones = tmp
@@ -402,7 +137,7 @@ class Zones:
         prefixstr += "/%s" % prefixlen
         prefix = ipaddress.IPv4Network(prefixstr, strict=True)
         
-        zone = Zone(zone=zonename, prefix=prefix, typ="reverse4")
+        zone = util.Zone(zone=zonename, prefix=prefix, typ="reverse4")
         self.reverse4.append(zone)
 
     def add_zone_reverse6(self, zonename):
@@ -437,7 +172,7 @@ class Zones:
         prefix = ipaddress.IPv6Network(prefixstr, strict=True)
         log.debug("prefix %s", prefix)
         
-        zone = Zone(zone=zonename, prefix=prefix, typ="reverse6")
+        zone = util.Zone(zone=zonename, prefix=prefix, typ="reverse6")
         self.reverse6.append(zone)
 
 
@@ -474,12 +209,32 @@ class DNS_Mgr:
         self.driver = driver
         self.zones = None
         self.zonesinfo = None
+        self.records = Records()
 
     def getZones(self):
         return self.driver.getZones()
 
     def restart(self):
         self.driver.restart()
+    
+    def load(self, config):
+        if "records" not in config:
+            # Backwards compatible, will be removed in the future
+            if "recordsfile" not in config or config["recordsfile"] is None:
+                print("Error: you need to specify a recordsfile")
+                sys.exit(1)
+            config["records"] = [{
+                'type': 'file_loader.py',
+                'name': config["recordsfile"],
+                }]
+
+        for loader in config["records"]:
+            print("loader", loader)
+            # Import the loader to use
+            loader_module = util.import_file(loader['type'])
+            
+            obj = loader_module.Loader()
+            obj.load(loader['name'], self.records)
 
     def rebuild(self, records=None):
         """
@@ -509,26 +264,26 @@ class DNS_Mgr:
             if record.typ == "A":
                 for value in record.value:
                     # forward
-                    rr = RR(domain=record.domain, ttl=record.ttl, name=record.name, typ=record.typ, value=value)
+                    rr = util.RR(domain=record.domain, ttl=record.ttl, name=record.name, typ=record.typ, value=value)
                     self.zones.add_rr(rr)
                     
                     # reverse
-                    rr = RR(domain=record.domain, ttl=record.ttl,name=value, typ="PTR", value=record.name)
+                    rr = util.RR(domain=record.domain, ttl=record.ttl,name=value, typ="PTR", value=record.name)
                     self.zones.add_rr_reverse4(rr)
                     
             elif record.typ == "AAAA":
                 for value in record.value:
                     # forward
-                    rr = RR(domain=record.domain, ttl=record.ttl,name=record.name, typ=record.typ, value=value)
+                    rr = util.RR(domain=record.domain, ttl=record.ttl,name=record.name, typ=record.typ, value=value)
                     self.zones.add_rr(rr)
                     
                     # reverse
-                    rr = RR(domain=record.domain, ttl=record.ttl, name=value, typ="PTR", value=record.name)
+                    rr = util.RR(domain=record.domain, ttl=record.ttl, name=value, typ="PTR", value=record.name)
                     self.zones.add_rr_reverse6(rr)
                     
             else:
                 for value in record.value:
-                    rr = RR(domain=record.domain, ttl=record.ttl, name=record.name, typ=record.typ, value=value)
+                    rr = util.RR(domain=record.domain, ttl=record.ttl, name=record.name, typ=record.typ, value=value)
                     self.zones.add_rr(rr)
                 
         # Write the files to the backend
@@ -618,13 +373,11 @@ def main():
         print("Status not implemented")
         
     elif args.cmd == "loadrecords":
-        print("Load recordsfile")
-        if "recordsfile" not in config or config["recordsfile"] is None:
-            print("Error: you need to specify a recordsfile")
-            sys.exit(1)
-        records = Records()
-        records.load(filename=config["recordsfile"])
-        for record in records:
+        print("Load records")
+        
+        mgr.load(config)
+            
+        for record in mgr.records:
             for value in record.value:
                 tmp = "%s.%s" % (record.name, record.domain)
                 print("%-30s %5s %-8s %s" % (tmp, record.ttl, record.typ, value))
