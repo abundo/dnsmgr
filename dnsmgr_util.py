@@ -19,7 +19,8 @@ allowed_chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_
 
 # Setup logger
 logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
+builtins.log = logging.getLogger(__name__)
+
 
 def die(msg, exitcode=1):
     print(msg)

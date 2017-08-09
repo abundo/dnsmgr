@@ -25,11 +25,6 @@ import dnsmgr_util as util
 import dnsmgr_bind
 
 
-# Setup logger
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
-
-
 class Records:
     """
     Manage a list of records
