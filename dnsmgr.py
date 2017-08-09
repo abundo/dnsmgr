@@ -215,27 +215,26 @@ class DNS_Mgr:
     def load(self, config):
         if "records" not in config:
             # Backwards compatible, will be removed in the future
-            if "recordsfile" not in config or config["recordsfile"] is None:
+            if "recordsfile" not in config or config.recordsfile is None:
                 print("Error: you need to specify a recordsfile")
                 sys.exit(1)
-            config["records"] = [{
-                'type': 'file_loader.py',
-                'name': config["recordsfile"],
-                }]
+            config.records = [AttrDict( type='file_loader.py', name=config.recordsfile,) ]
 
-        for loader in config["records"]:
+        for loader in config.records:
             print("loader", loader)
             # Import the loader to use
-            loader_module = util.import_file(loader['type'])
+            loader_module = util.import_file(loader.type)
             
             obj = loader_module.Loader()
-            obj.load(loader['name'], self.records)
+            obj.load(loader.name, self.records)
 
     def rebuild(self, records=None):
         """
         Convert all Record entries to resource records, and
         update nameserver
         """
+        if records is None:
+            records = self.records
         self.zonesinfo = self.driver.getZones()
         self.zones = Zones()
         
@@ -335,33 +334,33 @@ def main():
     config = {}
     
     if os.path.isfile(args.configfile):
-        with open(args.configfile, "r") as f:
-            try:
-                tmp = yaml.load(f)
-                config = tmp
-            except yaml.YAMLError as err:
-                print("Cannot load configuration file '%s', error: %s" % (args.configfile, err))
-                sys.exit(1)
+        try:
+            config = util.yaml_load(args.configfile)
+        except util.UtilException as err:
+            print("Cannot load configuration file '%s', error: %s" % (args.configfile, err))
+            sys.exit(1)
+    else:
+        log.warning("No configuration file found at %s" % args.configfile)
 
     if "bind" not in config:
-        config["bind"] = {}
+        config.bind = AttrDict()
        
     # Command line arguments overrides config file values
     
     # dnsmgr
-    if args.recordsfile:   config["recordsfile"] = args.recordsfile
+    if args.recordsfile:   config.recordsfile = args.recordsfile
     
     # dnsmgr_bind
-    if args.host:          config['bind']["host"]       = args.host
-    if args.port:          config['bind']["port"]       = args.port
-    if args.includedir:    config['bind']["includedir"] = args.includedir
-    if args.tmpdir:        config['bind']["tmpdir"]     = args.tmpdir
-    if args.nsconfigfile:  config['bind']["configfile"] = args.nsconfigfile    
+    if args.host:          config.bind.host       = args.host
+    if args.port:          config.bind.port       = args.port
+    if args.includedir:    config.bind.includedir = args.includedir
+    if args.tmpdir:        config.bind.tmpdir     = args.tmpdir
+    if args.nsconfigfile:  config.bind.configfile = args.nsconfigfile    
 
     # print("config", config)
     
     # We now have all arguments
-    bindMgr = dnsmgr_bind.BindMgr(**config["bind"])
+    bindMgr = dnsmgr_bind.BindMgr(**config.bind)
     mgr = DNS_Mgr(driver=bindMgr)
     
     if args.cmd == "status":
@@ -379,7 +378,7 @@ def main():
         
     elif args.cmd == "getzones":
         print("Get zones")
-        if "configfile" not in config["bind"] or config["bind"]["configfile"] is None:
+        if "configfile" not in config.bind or config.bind.configfile is None:
             print("Error: you need to specify a nsconfigfile")
             sys.exit(1)
         zonesinfo = mgr.getZones()
@@ -395,12 +394,11 @@ def main():
         
     elif args.cmd == "rebuild":
         print("Rebuild zone data from recordsfile")
-        if "recordsfile" not in config or config["recordsfile"] is None:
+        if "recordsfile" not in config or config.recordsfile is None:
             print("Error: you need to specify a recordsfile")
             sys.exit(1)
-        records = Records()
-        records.load(filename=config["recordsfile"])
-        mgr.rebuild(records=records)
+        mgr.load(config)
+        mgr.rebuild()
     
     else:
         print("Error: unknown command %s" % args.cmd)
