@@ -318,14 +318,8 @@ class BaseCLI(util.BaseCLI):
         if "bind" not in self.config:
             self.config.bind = AttrDict()
         
-        # Load the driver
-        if 'ns' in self.config:
-            ns_driver_module = util.import_file(self.config.ns.driver)
-            ns_driver = ns_driver_module.NS_Manager(**self.config.ns.config)
-        else:
-            # for compability, remove in a future version
-            import dnsmgr_bind
-            ns_driver = dnsmgr_bind.NS_Manager(**self.config.bind)
+        ns_driver_module = util.import_file(self.config.dns_server.driver)
+        ns_driver = ns_driver_module.NS_Manager(**self.config.dns_server.config)
         self.mgr = DNS_Mgr(config=self.config, driver=ns_driver)
     
 
