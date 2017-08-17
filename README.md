@@ -1,6 +1,6 @@
 # DNSMGR
 
-Manage dns forward and reverse zonefiles, from a recordsfile
+Manage dns forward and reverse zonefiles, from one or multiple record files
 
 DNSMGR can be run as a standalone application, or used as a library from other
 applications.

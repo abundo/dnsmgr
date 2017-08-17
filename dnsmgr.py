@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 '''
-Classes to handle DNS, with zones
+Classes to handle a DNS nameserver with zones, and a DHCP server
 
-Requires a driver, for example dnsmgr_bind, that does
-all the implementation specific details
+DNS and DHCP server functionality is implemented as drivers,
+which does the actual work. Which driver to use is specified in
+the configuration file
 
-Load all resource records
-Create forward A/AAAA records
-Create reverse IPv4 PTR records
-Create reverse IPv6 PTR records
-Create include file with zone entries
-If include file has any changes, increase SOA serial number and reload zone
+- Load all resource records
+- Create forward A/AAAA records
+- Create reverse IPv4 PTR records
+- Create reverse IPv6 PTR records
+- Create DNS include files with zone entries
+  - If include files has any changes, increase SOA serial number and reload zones
+- Create DHCP host include file
+  - If include file has any changes, restart nameserver
 '''
 
 import os
@@ -253,7 +256,7 @@ class DNS_Mgr:
 
         self.zones.init_search()
 
-        # Go through all receords, and add them to the correct zone
+        # Go through all records, and add them to the correct zone
         for record in records:
             if record.typ == "A":
                 for value in record.value:
