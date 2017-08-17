@@ -116,6 +116,8 @@ class AddSysPath:
 
 
 def import_file(pythonFile):
+    if pythonFile[0] != "/":
+        pythonFile = os.path.dirname(sys.argv[0]) + os.sep + pythonFile
     dir_name = os.path.dirname(pythonFile)
     module_name = os.path.basename(pythonFile)
     module_name = os.path.splitext(module_name)[0]
