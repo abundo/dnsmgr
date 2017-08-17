@@ -212,9 +212,6 @@ class DNS_Mgr:
     def getZones(self):
         return self.driver.getZones()
 
-    def restart(self):
-        self.driver.restart()
-    
     def load(self):
         if "records" not in self.config:
             # Backwards compatible, will be removed in the future
@@ -231,6 +228,11 @@ class DNS_Mgr:
             obj.load(loader.name, self.records)
 
     def restart(self):
+        self.driver.restart()
+    
+    def status(self):
+        raise NotImplementedError
+
     def update_dns(self, records=None):
         """
         Convert all Record entries to resource records,
@@ -379,7 +381,8 @@ class CLI_restart(BaseCLI):
 class CLI_status(BaseCLI):
     
     def run(self):
-        print("Not implemented")
+        print("Check status")
+        self.mgr.status()
 
 
 class CLI_update(BaseCLI):
@@ -391,7 +394,7 @@ class CLI_update(BaseCLI):
         print("Update zone data from recordsfile")
         self.mgr.update_dns()
 
-        print("Update DHCP ")        
+        print("Update DHCP")
         self.mgr.update_dhcp()
 
 
