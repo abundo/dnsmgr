@@ -43,6 +43,17 @@ class Loader:
                 else:
                     raise ValueError("Invalid command %s" % tmp[0])
                 continue
+
+            mac_address = None
+    
+            # Try to find options, end of line, starting with a ;
+            p = line.rfind(';')
+            if p >= 0:
+                line, tmp, options = line.rpartition(';')
+                for opt in options.split(' '):
+                    key,tmp,val=opt.partition("=")
+                    if key == 'mac':
+                        mac_address = val
     
             tmp = line.split(None, 3)
             if len(tmp) < 2:
@@ -65,7 +76,7 @@ class Loader:
             elif typ not in ["CNAME", "MX", "NS", "PTR", "SRV", "SSHFP", "TLSA", "TSIG", "TXT"]:
                 raise ValueError("Invalid type: %s in %s" % (typ, line))
             
-            record = util.Record(domain=self.domain, ttl=ttl, name=name, typ=typ, value=value)
+            record = util.Record(domain=self.domain, ttl=ttl, name=name, typ=typ, value=value, mac_address=mac_address)
             records.add(record)
 
 

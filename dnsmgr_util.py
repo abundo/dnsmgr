@@ -51,6 +51,54 @@ def runCmd(remote=None, cmd=None, call=False):
     return subprocess.check_output(cmd, timeout=10)
 
 
+class MyFile:
+    """
+    Represents a real file and a new temporary file
+    Writing is done to the temporary file in memory.
+    The temporary file can replace the real file if they are different
+    """
+    def __init__(self, filename):
+        import tempfile
+        self.filename = filename
+        self.temp_file = tempfile.SpooledTemporaryFile(mode="a+b")
+
+    def close(self):
+        pass
+
+    def write(self, s):
+        self.temp_file.write(s.encode())
+
+    def writeln(self, s):
+        self.temp_file.write(s.encode())
+        self.temp_file.write("\n".encode())
+
+    def equal(self):
+        """
+        Returns true if filename and tempfile is equal
+        """
+        with open(self.filename, 'rb') as f:
+            c1 = f.read()
+        c2 = self.get_tempfile()
+        return c1 == c2
+    
+    def get_tempfile(self):
+        self.temp_file.seek(0)
+        return self.temp_file.read()
+    
+    def replace(self):
+        """
+        If tempfile is different compared to filename, replace filename with tempfile
+        Returns True if file was replaced
+        """
+        if self.equal():
+            return False
+        f = open(self.filename, "wb")
+        self.temp_file.seek(0)
+        f.write(self.temp_file.read())
+        f.close()
+        return True
+
+
 class UtilException(Exception):
     pass
 
@@ -131,7 +179,7 @@ class Record:
     """
     Represents one record with type and values
     """
-    def __init__(self, domain=None, ttl="", name=None, typ=None, value=None):
+    def __init__(self, domain=None, ttl="", name=None, typ=None, value=None, mac_address=None):
         self.domain = domain
         self.ttl = ttl
         self.name = name
@@ -141,9 +189,11 @@ class Record:
         else:
             self.value = [value]
         self.fqdn = "%s.%s" % (name, domain)
+        self.mac_address = mac_address      # For writing DHCP config
     
     def __str__(self):
-        return "Record(domain=%s, ttl=%s, name=%s, typ=%s, value=%s)" % (self.domain, self.ttl, self.name, self.typ, self.value)
+        return "Record(domain=%s, ttl=%s, name=%s, typ=%s, value=%s mac_address=%s)" %\
+            (self.domain, self.ttl, self.name, self.typ, self.value, self.mac_address)
     
     def add_value(self, value):
         if isinstance(value, list):

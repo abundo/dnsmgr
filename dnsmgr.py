@@ -227,10 +227,11 @@ class DNS_Mgr:
             obj = loader_module.Loader()
             obj.load(loader.name, self.records)
 
-    def update(self, records=None):
+    def restart(self):
+    def update_dns(self, records=None):
         """
-        Convert all Record entries to resource records, and
-        update nameserver
+        Convert all Record entries to resource records,
+        update nameserver and dhcp server
         """
         if records is None:
             records = self.records
@@ -283,6 +284,20 @@ class DNS_Mgr:
         for zone in self.zones:
             self.driver.saveZone(zone)
 
+    def update_dhcp(self):
+        """
+        Write static DHCP bindings for ISC DHCP server
+        """
+        try:
+            if not self.config.dhcpd.enable:
+                return
+        except AttributeError:
+            return
+
+        # Load the driver
+        dhcpd_module = util.import_file(self.config.dhcpd.driver)
+        obj = dhcpd_module.DHCPd_manager(self.config.dhcpd)
+        obj.update(self.records)
 
 
 class BaseCLI(util.BaseCLI):
@@ -347,6 +362,8 @@ class CLI_load(BaseCLI):
             for value in record.value:
                 tmp = "%s.%s" % (record.name, record.domain)
                 print("%-30s %5s %-8s %s" % (tmp, record.ttl, record.typ, value))
+                if record.mac_address:
+                    print("        mac=%s" % (record.mac_address))
 
 
 class CLI_restart(BaseCLI):
@@ -365,9 +382,14 @@ class CLI_status(BaseCLI):
 class CLI_update(BaseCLI):
     
     def run(self):
+        print("Load resource records")
         self.mgr.load()
 
         print("Update zone data from recordsfile")
+        self.mgr.update_dns()
+
+        print("Update DHCP ")        
+        self.mgr.update_dhcp()
 
 
 def main():
