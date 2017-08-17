@@ -213,12 +213,6 @@ class DNS_Mgr:
         return self.driver.getZones()
 
     def load(self):
-        if "records" not in self.config:
-            # Backwards compatible, will be removed in the future
-            if "recordsfile" not in self.config or self.config.recordsfile is None:
-                util.die("Error: you need to specify a recordsfile")
-            self.config.records = [AttrDict( type='file_loader.py', name=self.config.recordsfile,) ]
-
         for loader in self.config.records:
             log.debug("Loading records using %s from %s" % (loader.type, loader.name))
             # Import the loader to use
