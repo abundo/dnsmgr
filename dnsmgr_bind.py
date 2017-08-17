@@ -23,6 +23,7 @@ import ipaddress
 
 from orderedattrdict import AttrDict
 
+import dnsmgr_util as util
 
 def ipv4_addr_to_reverse(addr):
     """
@@ -53,16 +54,6 @@ class ZoneInfo(AttrDict):
         self.name = None        # name of zone
         self.file = None        # full path to file with resource records
         self.typ = None         # master, slave etc
-
-
-def runCmd(remote=None, cmd=None, call=False):
-    if remote:
-        if remote.port:
-            cmd = ["-p", remote.port] + cmd
-        cmd = ["ssh", remote.host] + cmd
-    if call:
-        return subprocess.call(cmd, timeout=10)
-    return subprocess.check_output(cmd, timeout=10)
 
 
 class ParserException(Exception):
@@ -222,21 +213,21 @@ class FileMgr:
         Returns True if file exist
         """
         cmd = ["test", "-f", self.filename]
-        return runCmd(self.remote, cmd, call=True) == 0
+        return util.runCmd(self.remote, cmd, call=True) == 0
     
     def mkdir(self):
         """
         Create the directory
         """
         cmd = ["mkdir", "-p", self.filename]
-        return runCmd(self.remote, cmd, call=True) == 0
+        return util.runCmd(self.remote, cmd, call=True) == 0
     
     def size(self):
         """
         Returns size of the file
         """
         cmd = ["stat", "-c", "%s", self.filename]
-        out = runCmd(self.remote, cmd)
+        out = util.runCmd(self.remote, cmd)
         return int(out)
     
     def copy(self, dest):
@@ -255,17 +246,17 @@ class FileMgr:
             if self.remote.port:
                 cmd += ["-P", self.remote.port]
             cmd += ["%s:%s" % (self.remote.host, self.filename), dest.filename]
-            return runCmd(cmd=cmd)
+            return util.runCmd(cmd=cmd)
 
         elif dest.remote:
             cmd = ["scp"]
             if dest.remote.port:
                 cmd += ["-P", dest.remote.port]
             cmd += [self.filename, "%s:%s" % (dest.remote.host, dest.filename)]
-            return runCmd(cmd=cmd)
+            return util.runCmd(cmd=cmd)
 
         cmd = ["cp", "--force", self.filename, dest.filename]
-        return runCmd(cmd=cmd)
+        return util.runCmd(cmd=cmd)
                 
             
     def move(self, dest):
@@ -282,13 +273,13 @@ class FileMgr:
             raise ValueError("Not implemented, cannot move from remote to local server")
         
         cmd = ["mv", "--force", self.filename, dest.filename]
-        ret = runCmd(self.remote, cmd, call=True)
+        ret = util.runCmd(self.remote, cmd, call=True)
         return ret
         
     def sha256sum(self):
         """Calculate sha256 checksum on file"""
         cmd = ["sha256sum", self.filename]
-        out = runCmd(self.remote, cmd)
+        out = util.runCmd(self.remote, cmd)
         return out.split()[0].decode()
 
     def compare(self, dest):
@@ -342,7 +333,7 @@ class NS_Manager:
         Restart the bind process
         """
         cmd = ["sudo", "service", "bind9", "restart"]
-        return runCmd(self.remote, cmd)
+        return util.runCmd(self.remote, cmd)
     
     def reloadZone(self, zone=None):
         """
@@ -352,7 +343,7 @@ class NS_Manager:
         cmd = ["sudo", "/usr/sbin/rndc", "reload"]
         if zone:
             cmd.append(zone)
-        return runCmd(self.remote, cmd)
+        return util.runCmd(self.remote, cmd)
 
     def increaseSoaSerial(self, zoneinfo):
         """
@@ -453,7 +444,7 @@ class NS_Manager:
              
         # Copy file to correct location
         cmd = ["cp", "--force", fsrc.filename, fdst.filename]
-        runCmd(remote=self.remote, cmd=cmd)
+        util.runCmd(remote=self.remote, cmd=cmd)
 
         # Tell bind we have an updated serial no
         self.reloadZone(zoneinfo.name)

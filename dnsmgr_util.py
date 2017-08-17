@@ -11,12 +11,14 @@ import pprint
 import yaml
 import importlib.machinery
 import builtins
+import subprocess
 
 from orderedattrdict import AttrDict
 
 pp = pprint.PrettyPrinter(indent=4)
 
 allowed_chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-."
+
 
 def die(msg, exitcode=1):
     print(msg)
@@ -37,6 +39,16 @@ def setLogLevel(level):
         logging.basicConfig(level=m[level])
     else:
         die('Incorrect log level %s' % level)
+
+
+def runCmd(remote=None, cmd=None, call=False):
+    if remote:
+        if remote.port:
+            cmd = ["-p", remote.port] + cmd
+        cmd = ["ssh", remote.host] + cmd
+    if call:
+        return subprocess.call(cmd, timeout=10)
+    return subprocess.check_output(cmd, timeout=10)
 
 
 class UtilException(Exception):
