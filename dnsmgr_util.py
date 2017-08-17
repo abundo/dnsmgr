@@ -41,6 +41,14 @@ def setLogLevel(level):
         die('Incorrect log level %s' % level)
 
 
+def now():
+    return datetime.datetime.now().replace(microsecond=0)
+
+
+def now_str():
+    return now().strftime("%Y%m%d%H%M%S")
+
+
 def runCmd(remote=None, cmd=None, call=False):
     if remote:
         if remote.port:
