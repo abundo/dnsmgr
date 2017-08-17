@@ -23,6 +23,8 @@ The code
   - if the nameserver is using an older python version, run DNSMGR on
     another machine and modifying the nameserver over SSH
 
+Format and available options in the record file can be found in the records-example.com file.
+
 
 # Installation and setup
 

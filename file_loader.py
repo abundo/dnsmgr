@@ -16,7 +16,17 @@ class Loader:
     """
     Load records from a file
     """
-    
+
+    def __init__(self):
+        self.reverse4 = True
+        self.reverse6 = True
+
+    def _get_boolean(self, value):
+        value = value.lower()
+        if value.lower() not in ['on', 'off', 'true', 'false', '1', '0', 't', 'f', 'yes', 'no']:
+            raise ValueError('Invalid value %s, should be ON or OFF' % tmp[1])
+        return value in ['on', 'true', '1', 't', 'yes']
+        
     def load(self, filename=None, records=None):
         """
         Read all records from the records file
@@ -36,15 +46,29 @@ class Loader:
                 tmp = line.split(None, 2)
                 if len(tmp) < 2:
                     raise ValueError("Invalid $ syntax: %s" % line)
+
                 elif tmp[0] == "$DOMAIN":
                     self.domain = tmp[1]
+
                 elif tmp[0] == "$INCLUDE":
                     self.load(filename=tmp[1])
+
+                elif tmp[0] == "$REVERSE":
+                    self.reverse4 = self._get_boolean(tmp[1])
+                    self.reverse6 = self.reverse4
+
+                elif tmp[0] == "$REVERSE4":
+                    self.reverse4 = self._get_boolean(tmp[1])
+
+                elif tmp[0] == "$REVERSE6":
+                    self.reverse6 = self._get_boolean(tmp[1])
+
                 else:
                     raise ValueError("Invalid command %s" % tmp[0])
                 continue
 
             mac_address = None
+            reverse = None
     
             # Try to find options, end of line, starting with a ;
             p = line.rfind(';')
@@ -54,6 +78,8 @@ class Loader:
                     key,tmp,val=opt.partition("=")
                     if key == 'mac':
                         mac_address = val
+                    elif key == 'reverse':
+                        reverse = self._get_boolean(val)
     
             tmp = line.split(None, 3)
             if len(tmp) < 2:
@@ -76,7 +102,20 @@ class Loader:
             elif typ not in ["CNAME", "MX", "NS", "PTR", "SRV", "SSHFP", "TLSA", "TSIG", "TXT"]:
                 raise ValueError("Invalid type: %s in %s" % (typ, line))
             
-            record = util.Record(domain=self.domain, ttl=ttl, name=name, typ=typ, value=value, mac_address=mac_address)
+            if reverse is None:
+                if typ == 'A':
+                    reverse = self.reverse4
+                elif typ == 'AAAA':
+                    reverse = self.reverse6
+                    
+            record = util.Record(domain=self.domain, 
+                                 ttl=ttl, 
+                                 name=name, 
+                                 typ=typ, 
+                                 value=value, 
+                                 mac_address=mac_address,
+                                 reverse=reverse,
+                                 )
             records.add(record)
 
 

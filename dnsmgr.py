@@ -267,8 +267,9 @@ class DNS_Mgr:
                     self.zones.add_rr(rr)
                     
                     # reverse
-                    rr = util.RR(domain=record.domain, ttl=record.ttl,name=value, typ="PTR", value=record.name)
-                    self.zones.add_rr_reverse4(rr)
+                    if record.reverse:
+                        rr = util.RR(domain=record.domain, ttl=record.ttl,name=value, typ="PTR", value=record.name)
+                        self.zones.add_rr_reverse4(rr)
                     
             elif record.typ == "AAAA":
                 for value in record.value:
@@ -277,8 +278,9 @@ class DNS_Mgr:
                     self.zones.add_rr(rr)
                     
                     # reverse
-                    rr = util.RR(domain=record.domain, ttl=record.ttl, name=value, typ="PTR", value=record.name)
-                    self.zones.add_rr_reverse6(rr)
+                    if record.reverse:
+                        rr = util.RR(domain=record.domain, ttl=record.ttl, name=value, typ="PTR", value=record.name)
+                        self.zones.add_rr_reverse6(rr)
                     
             else:
                 for value in record.value:
@@ -367,9 +369,10 @@ class CLI_load(BaseCLI):
             for value in record.value:
                 tmp = "%s.%s" % (record.name, record.domain)
                 print("%-30s %5s %-8s %s" % (tmp, record.ttl, record.typ, value))
+                print("        reverse=%s" % (record.reverse), end="")
                 if record.mac_address:
-                    print("        mac=%s" % (record.mac_address))
-
+                    print("  mac=%s" % (record.mac_address), end="")
+                print()
 
 class CLI_restart(BaseCLI):
     
