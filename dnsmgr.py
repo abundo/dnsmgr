@@ -199,7 +199,8 @@ class Zones:
 
 class DNS_Mgr:
      
-    def __init__(self, driver=None):
+    def __init__(self, config=None, driver=None):
+        self.config = config
         self.driver = driver
         self.zones = None
         self.zonesinfo = None
@@ -211,14 +212,14 @@ class DNS_Mgr:
     def restart(self):
         self.driver.restart()
     
-    def load(self, config):
-        if "records" not in config:
+    def load(self):
+        if "records" not in self.config:
             # Backwards compatible, will be removed in the future
-            if "recordsfile" not in config or config.recordsfile is None:
+            if "recordsfile" not in self.config or self.config.recordsfile is None:
                 util.die("Error: you need to specify a recordsfile")
-            config.records = [AttrDict( type='file_loader.py', name=config.recordsfile,) ]
+            self.config.records = [AttrDict( type='file_loader.py', name=self.config.recordsfile,) ]
 
-        for loader in config.records:
+        for loader in self.config.records:
             log.debug("Loading records using %s from %s" % (loader.type, loader.name))
             # Import the loader to use
             loader_module = util.import_file(loader.type)
@@ -309,7 +310,7 @@ class BaseCLI(util.BaseCLI):
             # for compability, remove in a future version
             import dnsmgr_bind
             ns_driver = dnsmgr_bind.NS_Manager(**self.config.bind)
-        self.mgr = DNS_Mgr(driver=ns_driver)
+        self.mgr = DNS_Mgr(config=self.config, driver=ns_driver)
     
 
     def add_arguments2(self):
@@ -339,7 +340,8 @@ class CLI_getzones(BaseCLI):
 class CLI_load(BaseCLI):
     
     def run(self):
-        self.mgr.load(self.config)
+        print("Load resource records")
+        self.mgr.load()
             
         for record in self.mgr.records:
             for value in record.value:
@@ -363,9 +365,9 @@ class CLI_status(BaseCLI):
 class CLI_update(BaseCLI):
     
     def run(self):
+        self.mgr.load()
+
         print("Update zone data from recordsfile")
-        self.mgr.load(self.config)
-        self.mgr.update()
 
 
 def main():
