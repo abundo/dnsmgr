@@ -293,14 +293,14 @@ class DNS_Mgr:
         """
         log.debug("Update DHCP server")
         try:
-            if not self.config.dhcpd.enable:
+            if not self.config.dhcp_server.enable:
                 return
         except AttributeError:
             return
 
         # Load the driver
-        dhcpd_module = util.import_file(self.config.dhcpd.driver)
-        obj = dhcpd_module.DHCPd_manager(self.config.dhcpd)
+        dhcpd_module = util.import_file(self.config.dhcp_server.driver)
+        obj = dhcpd_module.DHCPd_manager(self.config.dhcp_server)
         obj.update(self.records)
 
 
@@ -389,7 +389,6 @@ class CLI_update(BaseCLI):
 
 def main():
     util.MyCLI(__name__)
-        
 
     
 if __name__ == "__main__":
