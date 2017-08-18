@@ -26,51 +26,41 @@ class DHCPd_manager:
     def restart_v4(self):
         log.info("Restart dhcpv4 server")
         cmd = self.config.ipv4.restart
+        cmd = cmd.split(" ")
         return util.runCmd(None, cmd)
 
     def restart_v6(self):
         log.info("Restart dhcpv6 server")
         cmd = self.config.ipv6.restart
-        return util.runCmd(None.remote, cmd)
+        cmd = cmd.split(" ")
+        return util.runCmd(None, cmd)
     
     def status(self):
-        pass
+        raise NotImplementedError
     
     def update(self, records):
         """
         Write static DHCP bindings for ISC DHCP server
         """
-        ipv4_filename = None
-        try:
-            ipv4_filename = self.config.ipv4_include_file
-            ipv4_file = util.MyFile(ipv4_filename)
+        v4_enabled = self.config.ipv4.enable
+        v6_enabled = self.config.ipv6.enable
+
+        if v4_enabled:
+            ipv4_file = util.MyFile(self.config.ipv4.include_file)
             ipv4_file.write("#\n")
             ipv4_file.write("# This file is automatically created by DnsMgr\n")
             ipv4_file.write("# Do not edit, changes will be lost\n")
             ipv4_file.write("#\n")
-        except ValueError:
-            pass
-        except AttributeError:
-            pass
 
-        ipv6_filename = None
-        try:
-            ipv6_filename = self.config.ipv6_include_file
-            ipv6_file = util.MyFile(ipv6_filename)
+        if v6_enabled:
+            ipv6_file = util.MyFile(self.config.ipv6.include_file)
             ipv6_file.write("#\n")
             ipv6_file.write("# This file is automatically created by DnsMgr\n")
             ipv6_file.write("# Do not edit, changes will be lost\n")
             ipv6_file.write("#\n")
-        except ValueError:
-            pass
-        except AttributeError:
-            pass
 
-        if ipv4_filename is None and ipv6_filename is None:
-            util.die("DHCP is enabled, but no include files configured")
-            
         for record in records:
-            if ipv4_filename and record.typ == "A":
+            if v4_enabled and record.typ == "A":
                 if record.mac_address:
                     ipv4_file.write("\n")
                     name = record.fqdn.replace(".", "_")
@@ -79,15 +69,15 @@ class DHCPd_manager:
                     ipv4_file.write("  fixed-address %s;\n" % record.value[0])
                     ipv4_file.write("}\n")
                     
-            elif ipv6_filename and record.typ == "AAAA":
+            elif v6_enabled and record.typ == "AAAA":
                 if record.mac_address:
                     print(record.value, record.mac_address)
 
-        if ipv4_filename:
+        if v4_enabled:
             if ipv4_file.replace():
                 self.restart_v4()
             ipv4_file.close()
-        if ipv6_filename:
+        if v6_enabled:
             if ipv4_file.replace():
                 self.restart_v6()
             ipv6_file.close()
