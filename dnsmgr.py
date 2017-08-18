@@ -245,6 +245,12 @@ class DNS_Mgr:
         update nameserver and dhcp server
         """
         log.debug("Update DNS server")
+        try:
+            if not self.config.dns_server.enable:
+                return
+        except AttributeError:
+            pass    # default enabled
+
         if records is None:
             records = self.records
         self.zonesinfo = self.driver.getZones()
