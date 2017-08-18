@@ -12,6 +12,8 @@ import yaml
 import importlib.machinery
 import builtins
 import subprocess
+import logging
+import logging.handlers
 
 from orderedattrdict import AttrDict
 
@@ -25,20 +27,81 @@ def die(msg, exitcode=1):
     sys.exit(exitcode)
 
 
-# Setup logger
-builtins.log = logging.getLogger(__name__)
+class Logger:
+    """
+    Handle logging
+    """
+    INFO = logging.INFO
+    WARNING = logging.WARNING
+    ERROR = logging.ERROR
+    DEBUG = logging.DEBUG
 
-def setLogLevel(level):
-    m = { 
+    level_dict = {
         'info': logging.INFO,
         'warning': logging.WARNING,
         'error': logging.ERROR,
-        'debug': logging.DEBUG, 
-         }
-    if level in m:
-        logging.basicConfig(level=m[level])
-    else:
-        die('Incorrect log level %s' % level)
+        'debug': logging.DEBUG
+    }
+
+    def __init__(self):
+        self.logger = logging.getLogger('dnsmgr')
+        self.logger.setLevel(logging.INFO)
+
+        # remove all handlers
+        for hdlr in self.logger.handlers:
+            logger.removeHandler(hdlr)
+
+        formatstr = '%(asctime)s %(levelname)s %(message)s '
+        formatter = logging.Formatter(formatstr)
+
+        consolehandler = logging.StreamHandler()
+        consolehandler.setFormatter(formatter)
+        self.logger.addHandler(consolehandler)
+
+    def activateSyslog(self):
+        formatter = logging.Formatter('%(module)s [%(process)d]: %(levelname)s %(message)s')
+
+        syslogger = logging.handlers.SysLogHandler(address='/dev/log')
+        syslogger.setFormatter(formatter)
+        
+        self.logger.addHandler(syslogger)
+
+
+    def setLevel(self, level):
+        if isinstance(level, str):
+            level = self.level_dict[level]
+        self.logger.setLevel(level)
+
+
+    # def info(self, msg):
+    #     self.logger.info(msg)
+    def info(self, *args):
+        self.logger.info(*args)
+
+
+    # def warning(self, msg):
+    #     self.logger.warning(msg)
+    def warning(self, *args):
+        self.logger.warning(*args)
+
+
+    # def error(self, msg):
+    #     self.logger.error(msg)
+    def error(self, *args):
+        self.logger.error(*args)
+
+
+    # def debug(self, msg):
+    #     self.logger.debug(msg)
+    def debug(self, *args):
+        self.logger.debug(*args)
+
+
+    def log(self, level, msg):
+        self.logger.log(level, msg)
+
+
+builtins.log = Logger()
 
 
 def now():

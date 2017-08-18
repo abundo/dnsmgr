@@ -213,8 +213,9 @@ class DNS_Mgr:
         return self.driver.getZones()
 
     def load(self):
+        log.debug("Load resource records")
         for loader in self.config.records:
-            log.debug("Loading records using %s from %s" % (loader.type, loader.name))
+            log.debug("Loading records using %s from %s", loader.type, loader.name)
             # Import the loader to use
             loader_module = util.import_file(loader.type)
             
@@ -232,6 +233,7 @@ class DNS_Mgr:
         Convert all Record entries to resource records,
         update nameserver and dhcp server
         """
+        log.debug("Update DNS server")
         if records is None:
             records = self.records
         self.zonesinfo = self.driver.getZones()
@@ -289,6 +291,7 @@ class DNS_Mgr:
         """
         Write static DHCP bindings for ISC DHCP server
         """
+        log.debug("Update DHCP server")
         try:
             if not self.config.dhcpd.enable:
                 return
@@ -305,7 +308,7 @@ class BaseCLI(util.BaseCLI):
     
     def __init__(self):
         super().__init__()
-        util.setLogLevel(self.args.loglevel)
+        log.setLevel(self.args.loglevel)
         
         if os.path.isfile(self.args.configfile):
             try:
@@ -313,7 +316,7 @@ class BaseCLI(util.BaseCLI):
             except util.UtilException as err:
                 util.die("Cannot load configuration file '%s', error: %s" % (self.args.configfile, err))
         else:
-            log.warning("No configuration file found at %s" % self.args.configfile)
+            log.warning("No configuration file found at %s", self.args.configfile)
     
         if "bind" not in self.config:
             self.config.bind = AttrDict()
@@ -379,13 +382,8 @@ class CLI_status(BaseCLI):
 class CLI_update(BaseCLI):
     
     def run(self):
-        print("Load resource records")
         self.mgr.load()
-
-        print("Update zone data from recordsfile")
         self.mgr.update_dns()
-
-        print("Update DHCP")
         self.mgr.update_dhcp()
 
 

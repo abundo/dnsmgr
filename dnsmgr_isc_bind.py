@@ -342,7 +342,7 @@ class NS_Manager:
         """
         reload zone content, one or all zones
         """
-        log.info("Reloading zone %s" % zone)
+        log.info("Reloading zone %s", zone)
         cmd = self.cmd.reload_zone.format(zone=zone)
         cmd = cmd.split(" ")
         return util.runCmd(self.remote, cmd)

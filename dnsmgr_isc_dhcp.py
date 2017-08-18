@@ -24,13 +24,13 @@ class DHCPd_manager:
         self.config = config
 
     def restart_v4(self):
-        print("Restart dhcpv4 server")
-        cmd = ["sudo", "service", "isc-dhcp-server", "restart"]
+        log.info("Restart dhcpv4 server")
+        cmd = self.config.ipv4.restart
         return util.runCmd(None, cmd)
 
     def restart_v6(self):
-        print("Restart dhcpv6 server")
-        cmd = ["sudo", "service", "isc-dhcp-server6", "restart"]
+        log.info("Restart dhcpv6 server")
+        cmd = self.config.ipv6.restart
         return util.runCmd(None.remote, cmd)
     
     def status(self):
@@ -105,7 +105,7 @@ class BaseCli(util.BaseCLI):
             except util.UtilException as err:
                 util.die("Cannot load configuration file '%s', error: %s" % (self.args.configfile, err))
         else:
-            log.warning("No configuration file found at %s" % self.args.configfile)
+            log.warning("No configuration file found at %s", self.args.configfile)
     
         if "bind" not in self.config:
             self.config.bind = AttrDict()
