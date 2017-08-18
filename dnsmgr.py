@@ -341,8 +341,6 @@ class CLI_getzones(BaseCLI):
     
     def run(self):
         print("Get zones")
-        if "configfile" not in self.config.bind or self.config.bind.configfile is None:
-            util.die("Error: you need to specify a nsconfigfile")
         zonesinfo = self.mgr.getZones()
         for zoneinfo in zonesinfo.values():
             print("zone")
