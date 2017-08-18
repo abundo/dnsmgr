@@ -202,12 +202,23 @@ class Zones:
 
 class DNS_Mgr:
      
-    def __init__(self, config=None, driver=None):
-        self.config = config
-        self.driver = driver
+    def __init__(self, config_file=None):
+        self.config_file = config_file
         self.zones = None
         self.zonesinfo = None
         self.records = Records()
+
+        # Load configuration file
+        if not os.path.isfile(self.config_file):
+            util.die("No configuration file found at %s" %self.config_file)
+        try:
+            self.config = util.yaml_load(self.config_file)
+        except util.UtilException as err:
+            util.die("Cannot load configuration file '%s', error: %s" % (self.args.configfile, err))
+    
+        # Load DNS server driver
+        self.driver_module = util.import_file(self.config.dns_server.driver)
+        self.driver = self.driver_module.NS_Manager(**self.config.dns_server.config)
 
     def getZones(self):
         return self.driver.getZones()
@@ -310,20 +321,7 @@ class BaseCLI(util.BaseCLI):
         super().__init__()
         log.setLevel(self.args.loglevel)
         
-        if os.path.isfile(self.args.configfile):
-            try:
-                self.config = util.yaml_load(self.args.configfile)
-            except util.UtilException as err:
-                util.die("Cannot load configuration file '%s', error: %s" % (self.args.configfile, err))
-        else:
-            log.warning("No configuration file found at %s", self.args.configfile)
-    
-        if "bind" not in self.config:
-            self.config.bind = AttrDict()
-        
-        ns_driver_module = util.import_file(self.config.dns_server.driver)
-        ns_driver = ns_driver_module.NS_Manager(**self.config.dns_server.config)
-        self.mgr = DNS_Mgr(config=self.config, driver=ns_driver)
+        self.mgr = DNS_Mgr(config_file=self.args.configfile)
     
 
     def add_arguments2(self):
