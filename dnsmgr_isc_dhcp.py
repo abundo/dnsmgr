@@ -71,14 +71,19 @@ class DHCPd_manager:
                     
             elif v6_enabled and record.typ == "AAAA":
                 if record.mac_address:
-                    print(record.value, record.mac_address)
+                    ipv6_file.write("\n")
+                    name = record.fqdn.replace(".", "_")
+                    ipv6_file.write("host %s {\n" % name)
+                    ipv6_file.write("  hardware ethernet %s;\n" % record.mac_address)
+                    ipv6_file.write("  fixed-address6 %s;\n" % record.value[0])
+                    ipv6_file.write("}\n")
 
         if v4_enabled:
             if ipv4_file.replace():
                 self.restart_v4()
             ipv4_file.close()
         if v6_enabled:
-            if ipv4_file.replace():
+            if ipv6_file.replace():
                 self.restart_v6()
             ipv6_file.close()
 
