@@ -317,7 +317,13 @@ class DNS_Mgr:
 
         # Load the driver
         dhcpd_module = util.import_file(self.config.dhcp_server.driver)
-        obj = dhcpd_module.DHCPd_manager(self.config.dhcp_server)
+        config_section = self.config.dhcp_server.driver
+        if config_section.startswith("dnsmgr_"):
+            config_section = config_section[7:]
+        if config_section.endswith(".py"):
+            config_section = config_section[:-3]
+        dhcp_config = getattr(self.config, config_section)
+        obj = dhcpd_module.DHCPd_manager(dhcp_config)
         obj.update(self.records)
 
 
