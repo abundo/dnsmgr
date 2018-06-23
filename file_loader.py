@@ -38,6 +38,7 @@ class Loader:
 
         recursive function, to handle $INCLUDE to other files
         """
+        self.domain = os.path.basename(filename)
         for line in open(filename, "r"):
             line = line.rstrip()
             if line == "" or line[0] == "#" or line[0] == ";":
