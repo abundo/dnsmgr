@@ -27,38 +27,6 @@ from orderedattrdict import AttrDict
 import dnsmgr_util as util
 
 
-class Records:
-    """
-    Manage a list of records
-    """    
-    def __init__(self):
-        self._records = {}    # key is name+typ
-        self.domain = None
-    
-    def __len__(self):
-        return len(self._records)
-
-    def add(self, record):
-        key = record.fqdn + chr(0) + record.typ
-        if key in self._records:
-            # Record exist, add additional value to it
-            self._records[key].add_value(record.value)
-        else:
-            self._records[key] = record
-
-    def __iter__(self):
-        keys = list(self._records.keys())
-        keys.sort()
-        for key in keys:
-            yield self._records[key]
-            
-    def items(self):
-        return self._records.items()
-
-    def get(self, name):
-        return self._records[name]
-
-
 class Zones:
 
     def __init__(self):
@@ -208,7 +176,7 @@ class DNS_Mgr:
         self.config_file = config_file
         self.zones = None
         self.zonesinfo = None
-        self.records = Records()
+        self.records = util.Records()
 
         # Load configuration file
         if not os.path.isfile(self.config_file):
@@ -227,7 +195,7 @@ class DNS_Mgr:
 
     def load(self):
         log.debug("Load resource records")
-        self.records = Records()
+        self.records = util.Records()
         for loader in self.config.records:
             log.debug("Loading records using %s from %s", loader.type, loader.name)
             # Import the loader to use
