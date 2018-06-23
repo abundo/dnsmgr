@@ -135,8 +135,9 @@ def main():
     if not os.path.isfile(args.file):
         util.die("Cannot find file %s" % args.file)
 
+    loader = Loader()
     records = util.Records()
-    records.load(args.file)
+    loader.load(filename=args.file, records=records)
     
     for record in records:
         print(record)
