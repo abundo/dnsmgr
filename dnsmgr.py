@@ -203,6 +203,8 @@ class Zones:
 class DNS_Mgr:
      
     def __init__(self, config_file=None):
+        if config_file is None:
+            config_file = '/etc/dnsmgr/dnsmgr.conf'
         self.config_file = config_file
         self.zones = None
         self.zonesinfo = None
@@ -317,6 +319,7 @@ class DNS_Mgr:
 
         # Load the driver
         dhcpd_module = util.import_file(self.config.dhcp_server.driver)
+        
         config_section = self.config.dhcp_server.driver
         if config_section.startswith("dnsmgr_"):
             config_section = config_section[7:]
