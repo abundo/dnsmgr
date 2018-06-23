@@ -227,6 +227,7 @@ class DNS_Mgr:
 
     def load(self):
         log.debug("Load resource records")
+        self.records = Records()
         for loader in self.config.records:
             log.debug("Loading records using %s from %s", loader.type, loader.name)
             # Import the loader to use
