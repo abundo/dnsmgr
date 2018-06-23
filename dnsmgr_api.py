@@ -139,7 +139,7 @@ class Dnsmgr_RequestHandler(http.server.BaseHTTPRequestHandler):
         
         if p.startswith("/records/"):
             f = p[9:]
-            if '.' in f or '/' in f:
+            if '..' in f or '/' in f:
                 # We don't accept stuff that may take us to another directory
                 message = { 'errno': 1, 'errmsg': 'Invalid characters in target filename' }
             else:
