@@ -19,6 +19,11 @@
 #
 #     Read input from <filename> 
 #
+#   $FORWARD <boolean>
+#
+#     Controls generation of forward records
+#     Default is to generate forward records
+#
 #   $REVERSE <boolean>
 #
 #     Controls auto-generation of reverse IPv4 and IPv6 records

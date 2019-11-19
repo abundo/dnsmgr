@@ -253,7 +253,7 @@ class Record:
     Represents one record with type and values
     """
     def __init__(self, domain=None, ttl="", name=None, typ=None, value=None, mac_address=None,
-                reverse=None):
+                forward=None, reverse=None):
         self.domain = domain
         self.ttl = ttl
         self.name = name
@@ -264,11 +264,12 @@ class Record:
             self.value = [value]
         self.fqdn = "%s.%s" % (name, domain)
         self.mac_address = mac_address      # For writing DHCP config
+        self.forward = forward
         self.reverse = reverse
     
     def __str__(self):
-        return "Record(domain=%s, ttl=%s, name=%s, typ=%s, value=%s, mac_address=%s, reverse=%s)" %\
-            (self.domain, self.ttl, self.name, self.typ, self.value, self.mac_address, self.reverse)
+        return "Record(domain=%s, ttl=%s, name=%s, typ=%s, value=%s, mac_address=%s, forward=%s, reverse=%s)" %\
+            (self.domain, self.ttl, self.name, self.typ, self.value, self.mac_address, self.forward, self.reverse)
     
     def add_value(self, value):
         if isinstance(value, list):

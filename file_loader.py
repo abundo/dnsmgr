@@ -18,6 +18,7 @@ class Loader:
     """
 
     def __init__(self):
+        self.forward = True
         self.reverse4 = True
         self.reverse6 = True
 
@@ -53,6 +54,9 @@ class Loader:
 
                 elif tmp[0] == "$INCLUDE":
                     self.load(filename=tmp[1])
+
+                elif tmp[0] == "$FORWARD":
+                    self.forward = self._get_boolean(tmp[1])
 
                 elif tmp[0] == "$REVERSE":
                     self.reverse4 = self._get_boolean(tmp[1])
