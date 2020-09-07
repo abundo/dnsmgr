@@ -158,14 +158,14 @@ class Zones:
         if zone is not None:
             zone.add_rr(rr)
         else:
-            log.warning("Ignored, NOT handling reverse DNS for %s", rr)
+            log.info("Ignored, NOT handling reverse DNS for %s", rr)
 
     def add_rr_reverse6(self, rr):
         zone = self.lpm6.lookup(rr.name)
         if zone is not None:
             zone.add_rr(rr)
         else:
-            log.warning("Ignored, NOT handling reverse DNS for %s", rr)
+            log.info("Ignored, NOT handling reverse DNS for %s", rr)
 
 
 class DNS_Mgr:
